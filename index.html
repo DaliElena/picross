@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Нонограмма · Сердечко</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --accent: #0064e0;
+    --accent-shadow: rgba(0,100,224,0.28);
+    --bg: #ffffff;
+    --surface: #f1f4f7;
+    --border: #eef1f4;
+    --line: #e2e7ec;
+    --sep: #aeb8c2;
+    --text: #0a1317;
+    --text2: #1c1e21;
+    --muted: #8595a4;
+    --tint-hl: rgba(0,100,224,0.18);
+    --err: #e41e3f;
+    --coin: #ffd24a;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  @keyframes nonoErr {
+    0%   { background: transparent; }
+    15%  { background: rgba(228,30,63,0.18); }
+    85%  { background: rgba(228,30,63,0.18); }
+    100% { background: transparent; }
+  }
+  @keyframes starPop {
+    0%   { transform: scale(0); }
+    70%  { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ---- HEADER ---- */
+  #header {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; border: none;
+  }
+  .header-info { flex: 1; min-width: 0; }
+  .header-title-row { display: flex; align-items: center; gap: 8px; }
+  .puzzle-title { font-size: 17px; font-weight: 600; color: var(--text); }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+    color: #1f7a3d; background: #e3f4e8;
+    padding: 3px 9px; border-radius: 100px; white-space: nowrap;
+  }
+  .mistakes-lbl { font-size: 11.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+
+  /* ---- PUZZLE AREA ---- */
+  #puzzleArea {
+    flex: 1; min-height: 0;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 14px 12px; overflow: hidden;
+  }
+  #puzzleWrap { display: inline-block; }
+
+  /* col clues */
+  #colClues { display: flex; }
+  .col-clue {
+    display: flex; flex-direction: column;
+    justify-content: flex-end; align-items: center;
+    gap: 1px; padding-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    cursor: pointer; user-select: none;
+    transition: background 0.12s, opacity 0.2s;
+  }
+
+  /* row clues */
+  #rowClues { display: flex; flex-direction: column; }
+  .row-clue {
+    display: flex; justify-content: flex-end; align-items: center;
+    gap: 5px; padding-right: 6px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text2);
+    cursor: pointer; user-select: none;
+    transition: background 0.12s, opacity 0.2s;
+  }
+
+  /* grid */
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(10, var(--cs));
+    grid-auto-rows: var(--cs);
+    border-right: 1.5px solid var(--sep);
+    border-bottom: 1.5px solid var(--sep);
+    touch-action: none; user-select: none;
+  }
+  .cell {
+    width: var(--cs); height: var(--cs);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; touch-action: none; user-select: none;
+    position: relative;
+  }
+  .cell.flash-err { animation: nonoErr 0.55s ease both; }
+
+  /* ---- BOTTOM BAR ---- */
+  #bottomBar {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding: 10px 16px 14px;
+    display: flex; align-items: center; justify-content: center; gap: 24px;
+    background: var(--bg);
+  }
+  .bar-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; min-width: 56px; background: none; border: none;
+  }
+  .bar-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  /* hint: always accent */
+  .bar-icon.accent {
+    background: var(--accent);
+    box-shadow: 0 4px 14px var(--accent-shadow);
+  }
+  .bar-lbl {
+    font-size: 10.5px; font-weight: 500; color: var(--muted);
+    font-family: 'Montserrat', sans-serif;
+    transition: color 0.15s;
+  }
+  .bar-lbl.accent { color: var(--accent); font-weight: 600; }
+
+  /* ---- TOOL TOGGLE PILL ---- */
+  #toolToggle {
+    width: 112px; height: 52px; border-radius: 100px;
+    background: var(--surface);
+    position: relative; cursor: pointer; border: none; padding: 0;
+    flex-shrink: 0;
+  }
+  #toolThumb {
+    position: absolute; top: 4px; left: 4px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+  }
+  #toolToggle.cross #toolThumb { transform: translateX(60px); }
+  .toggle-icon {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; transition: opacity 0.2s;
+  }
+  /* центр кружка в позиции fill: 4 + 44/2 = 26px */
+  .ti-fill  { left: 26px; transform: translate(-50%, -50%); }
+  /* центр кружка в позиции cross: 4 + 60 + 44/2 = 86px */
+  .ti-cross { left: 86px; transform: translate(-50%, -50%); }
+  #toolToggle .ti-cross { opacity: 0.45; }
+  #toolToggle .ti-fill  { opacity: 0.45; }
+  #toolToggle.cross .ti-cross { opacity: 1; }
+  #toolToggle.fill  .ti-fill  { opacity: 1; }
+  .coin-badge {
+    position: absolute; top: -3px; right: -5px;
+    font-size: 9px; font-weight: 700; color: var(--text);
+    background: var(--coin); padding: 1px 5px; border-radius: 100px;
+    border: 1.5px solid #fff; font-family: 'Montserrat', sans-serif;
+  }
+
+  /* ---- COMPLETION OVERLAY ---- */
+  #completionOverlay {
+    position: fixed; inset: 0;
+    background: #0a1317;
+    display: none; align-items: center; justify-content: center;
+    z-index: 10; overflow-y: auto; padding: 24px 16px;
+    animation: slideUp 0.35s ease both;
+  }
+  #completionOverlay.active { display: flex; }
+  .ghost-grid-wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0.08; pointer-events: none;
+  }
+  #ghostGrid { display: grid; grid-template-columns: repeat(10, 32px); grid-auto-rows: 32px; }
+  .result-card {
+    position: relative; width: 100%; max-width: 360px;
+    background: #fff; border-radius: 28px;
+    padding: 28px 24px 24px; text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    animation: cardIn 0.4s ease both;
+  }
+  .result-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  .result-title { font-size: 24px; font-weight: 600; color: var(--text); margin-top: 4px; }
+  .pixel-wrap { margin: 18px auto 0; width: fit-content; padding: 12px; background: #f7f9fb; border-radius: 16px; }
+  #pixelGrid { display: grid; grid-template-columns: repeat(10, 22px); grid-auto-rows: 22px; border-radius: 5px; overflow: hidden; }
+  .stars-row { display: flex; justify-content: center; gap: 10px; margin-top: 18px; }
+  .stats-row { display: flex; margin-top: 20px; border-top: 1px solid #eef1f4; border-bottom: 1px solid #eef1f4; }
+  .stat { flex: 1; padding: 14px 0; }
+  .stat-divider { width: 1px; background: #eef1f4; }
+  .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; color: var(--text); }
+  .stat-lbl { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  .btn-primary {
+    margin-top: 18px; height: 52px; border-radius: 100px;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border: none; width: 100%;
+    font-family: 'Montserrat', sans-serif;
+    box-shadow: 0 6px 16px var(--accent-shadow);
+  }
+  .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-outline {
+    flex: 1; height: 48px; border-radius: 100px;
+    border: 1.5px solid #ced0d4; color: var(--text2);
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    cursor: pointer; background: none; font-family: 'Montserrat', sans-serif;
+  }
+  .btn-ghost {
+    flex: 1; height: 48px; border-radius: 100px;
+    border: none; color: var(--muted);
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    cursor: pointer; background: none; font-family: 'Montserrat', sans-serif;
+  }
+
+  @media (min-width: 600px) {
+    body { background: #f1f4f7; align-items: center; justify-content: center; overflow: auto; }
+    #app {
+      width: 420px; background: #fff; border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(16,24,32,0.16);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+  }
+  @media (max-width: 599px) { #app { display: contents; } }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <button class="icon-btn" aria-label="Меню">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" stroke-width="2" stroke-linecap="round">
+        <path d="M3 6h18M3 12h18M3 18h18"/>
+      </svg>
+    </button>
+    <div class="header-info">
+      <div class="header-title-row">
+        <span class="puzzle-title">Сердечко</span>
+        <span class="badge">Средне</span>
+      </div>
+      <div class="mistakes-lbl">10 × 10 · ошибок: <span id="mistakesVal">0</span></div>
+    </div>
+    <button class="icon-btn" aria-label="Настройки" id="btnSettings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- PUZZLE AREA -->
+  <div id="puzzleArea">
+    <div id="puzzleWrap">
+      <div style="display:flex; padding-left:var(--rw)">
+        <div id="colClues"></div>
+      </div>
+      <div style="display:flex">
+        <div id="rowClues"></div>
+        <div id="grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottomBar">
+
+    <!-- tool toggle pill -->
+    <button id="toolToggle" class="fill" aria-label="Инструмент">
+      <div id="toolThumb"></div>
+      <div class="toggle-icons">
+        <div class="toggle-icon ti-fill">
+          <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+            <rect x="3" y="3" width="12" height="12" rx="2" fill="#1c1e21"/>
+          </svg>
+        </div>
+        <div class="toggle-icon ti-cross">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <line x1="3" y1="3" x2="15" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="15" y1="3" x2="3" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+    </button>
+
+    <!-- hint -->
+    <button class="bar-btn" id="btnHint" aria-label="Подсказка">
+      <div class="bar-icon accent">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18h6"/><path d="M10 22h4"/>
+          <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/>
+        </svg>
+        <span class="coin-badge" id="coinsVal">12</span>
+      </div>
+      <span class="bar-lbl accent">Подсказка</span>
+    </button>
+
+  </div>
+
+</div><!-- #app -->
+
+<!-- COMPLETION OVERLAY -->
+<div id="completionOverlay">
+  <div class="ghost-grid-wrap"><div id="ghostGrid"></div></div>
+  <div class="result-card">
+    <div class="result-tag">Пазл решён</div>
+    <div class="result-title">Сердечко</div>
+    <div class="pixel-wrap"><div id="pixelGrid"></div></div>
+    <div class="stars-row" id="starsRow"></div>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" id="finalTime">—</div><div class="stat-lbl">Время</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="stat-val" id="finalMistakes">—</div><div class="stat-lbl">Ошибки</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="stat-val" id="finalCoins">—</div><div class="stat-lbl">Монеты</div></div>
+    </div>
+    <button class="btn-primary" id="btnNext">Следующий пазл</button>
+    <div class="btn-row">
+      <button class="btn-outline" id="btnShare">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>
+        </svg>
+        Поделиться
+      </button>
+      <button class="btn-ghost" id="btnReplay">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5d6c7b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+        </svg>
+        Заново
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---- constants ---- */
+const ACCENT  = '#0064e0';
+const LINE    = '#e2e7ec';
+const SEP     = '#aeb8c2';
+const TINT_HL = 'rgba(0,100,224,0.18)';
+
+const SOL = [
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,1,1,0,0,0,0,1,1,0],
+  [1,1,1,1,0,0,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1],
+  [0,1,1,1,1,1,1,1,1,0],
+  [0,0,1,1,1,1,1,1,0,0],
+  [0,0,0,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+];
+
+/* ---- state ---- */
+let grid     = mk();       // 0=empty 1=filled 2=cross
+let cellEls  = [];
+let mistakes = 0, coins = 12, seconds = 0;
+let solved   = false;
+let hlRow = -1, hlCol = -1;
+let activeTool = 'fill';   // 'fill' | 'cross'
+let dragging   = false;
+let dragValue  = 0;
+let flashing   = new Set(); // cells currently in error-flash
+
+let CS = 29, RW = 58, CH = 66, FSIZE = 12.5;
+
+function mk() { return Array.from({length:10}, () => Array(10).fill(0)); }
+
+/* ---- helpers ---- */
+function lineClues(arr) {
+  const r=[]; let c=0;
+  for (const v of arr) { if(v===1) c++; else { if(c){r.push(c);c=0;} } }
+  if(c) r.push(c);
+  return r.length ? r : [0];
+}
+function rowSolved(i) { return SOL[i].every((v,j)=>(grid[i][j]===1)===(v===1)); }
+function colSolved(j) { return SOL.every((r,i)=>(grid[i][j]===1)===(r[j]===1)); }
+function allSolved()  { for(let i=0;i<10;i++) if(!rowSolved(i)) return false; return true; }
+function fmt(s)       { const m=Math.floor(s/60),ss=s%60; return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
+
+/* ---- timer ---- */
+setInterval(() => { if(!solved) seconds++; }, 1000);
+
+/* ---- tool toggle ---- */
+function selectTool(tool) {
+  activeTool = tool;
+  const tog = document.getElementById('toolToggle');
+  tog.classList.toggle('fill',  tool === 'fill');
+  tog.classList.toggle('cross', tool === 'cross');
+}
+document.getElementById('toolToggle').addEventListener('click', () => {
+  selectTool(activeTool === 'fill' ? 'cross' : 'fill');
+});
+
+/* ---- cell writes ---- */
+function applyTool(i, j, toggle) {
+  if (flashing.has(`${i},${j}`)) return; // cell mid-flash, ignore input
+  const want = activeTool === 'fill' ? 1 : 2;
+  const cur  = grid[i][j];
+  const next = (toggle && cur === want) ? 0 : want;
+  commitCell(i, j, next);
+}
+
+function commitCell(i, j, val) {
+  if (grid[i][j] === val) return;
+
+  // Wrong fill: flash red cross, then auto-set empty
+  if (val === 1 && SOL[i][j] === 0) {
+    mistakes++;
+    document.getElementById('mistakesVal').textContent = mistakes;
+    flashError(i, j);
+    return;
+  }
+
+  grid[i][j] = val;
+  renderCell(i, j);
+  refreshClueOpacity(i, j);
+  if (!solved && allSolved()) complete();
+}
+
+function flashError(i, j) {
+  const key = `${i},${j}`;
+  flashing.add(key);
+  const el = cellEls[i][j];
+  const sz = Math.round(CS * 0.46);
+
+  // Show red cross over current background
+  el.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 18 18" fill="none">
+    <line x1="3" y1="3" x2="15" y2="15" stroke="#e41e3f" stroke-width="2.8" stroke-linecap="round"/>
+    <line x1="15" y1="3" x2="3" y2="15" stroke="#e41e3f" stroke-width="2.8" stroke-linecap="round"/>
+  </svg>`;
+  el.classList.add('flash-err');
+
+  setTimeout(() => {
+    el.classList.remove('flash-err');
+    flashing.delete(key);
+    // leave cell empty (correct value for a wrong fill is 0)
+    grid[i][j] = 0;
+    renderCell(i, j);
+    refreshClueOpacity(i, j);
+  }, 550);
+}
+
+function hint() {
+  if (coins < 5) return;
+  for (let i=0;i<10;i++) for(let j=0;j<10;j++) {
+    if (SOL[i][j]===1 && grid[i][j]!==1) {
+      coins -= 5;
+      grid[i][j] = 1;
+      renderCell(i, j);
+      refreshClueOpacity(i, j);
+      document.getElementById('coinsVal').textContent = coins;
+      if (!solved && allSolved()) complete();
+      return;
+    }
+  }
+}
+
+/* ---- highlight ---- */
+function toggleHlRow(i) { hlRow = hlRow===i ? -1 : i; hlCol=-1; renderAllCells(); renderClues(); }
+function toggleHlCol(j) { hlCol = hlCol===j ? -1 : j; hlRow=-1; renderAllCells(); renderClues(); }
+
+/* ---- border helpers ---- */
+function borderCSS(topSep, leftSep) {
+  return [
+    topSep  ? `1.5px solid ${SEP}` : `0.5px solid ${LINE}`,
+    leftSep ? `1.5px solid ${SEP}` : `0.5px solid ${LINE}`,
+  ];
+}
+
+/* ---- render single cell ---- */
+function renderCell(i, j) {
+  const el = cellEls[i]?.[j];
+  if (!el || flashing.has(`${i},${j}`)) return;
+  const st    = grid[i][j];
+  const inHl  = hlRow===i || hlCol===j;
+  let bg = 'transparent';
+  if (st===1)   bg = ACCENT;
+  else if (inHl) bg = TINT_HL;
+
+  const [bt, bl] = borderCSS(i%5===0, j%5===0);
+  el.style.borderTop  = bt;
+  el.style.borderLeft = bl;
+  el.style.background = bg;
+
+  if (st === 2) {
+    const sz = Math.round(CS * 0.42);
+    el.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 18 18" fill="none">
+      <line x1="3" y1="3" x2="15" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="15" y1="3" x2="3" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function renderAllCells() {
+  for (let i=0;i<10;i++) for (let j=0;j<10;j++) renderCell(i,j);
+}
+
+/* ---- clues ---- */
+function renderClues() {
+  const ccEl = document.getElementById('colClues');
+  ccEl.innerHTML = '';
+  for (let j=0;j<10;j++) {
+    const nums = lineClues(SOL.map(r=>r[j]));
+    const dim  = colSolved(j);
+    const hl   = hlCol===j;
+    const [,bl] = borderCSS(false, j%5===0);
+    const d = document.createElement('div');
+    d.className = 'col-clue';
+    d.style.cssText = `width:${CS}px;min-height:${CH}px;font-size:${FSIZE}px;border-left:${bl};background:${hl?TINT_HL:'transparent'};opacity:${dim?0.3:1};color:#1c1e21`;
+    d.innerHTML = nums.map(n=>`<span style="line-height:1.1">${n}</span>`).join('');
+    d.addEventListener('click', () => toggleHlCol(j));
+    ccEl.appendChild(d);
+  }
+  const rcEl = document.getElementById('rowClues');
+  rcEl.innerHTML = '';
+  for (let i=0;i<10;i++) {
+    const nums = lineClues(SOL[i]);
+    const dim  = rowSolved(i);
+    const hl   = hlRow===i;
+    const [bt] = borderCSS(i%5===0, false);
+    const d = document.createElement('div');
+    d.className = 'row-clue';
+    d.style.cssText = `width:${RW}px;height:${CS}px;font-size:${FSIZE}px;border-top:${bt};background:${hl?TINT_HL:'transparent'};opacity:${dim?0.3:1}`;
+    d.innerHTML = nums.map(n=>`<span>${n}</span>`).join('');
+    d.addEventListener('click', () => toggleHlRow(i));
+    rcEl.appendChild(d);
+  }
+}
+
+function refreshClueOpacity(i, j) {
+  const ccEl = document.getElementById('colClues');
+  const rcEl = document.getElementById('rowClues');
+  if (ccEl.children[j]) ccEl.children[j].style.opacity = colSolved(j) ? '0.3' : '1';
+  if (rcEl.children[i]) rcEl.children[i].style.opacity = rowSolved(i) ? '0.3' : '1';
+}
+
+/* ---- layout ---- */
+function computeSize() {
+  const isDesktop = window.innerWidth >= 600;
+  const hH = document.getElementById('header')?.getBoundingClientRect().height  || 62;
+  const bH = document.getElementById('bottomBar')?.getBoundingClientRect().height || 82;
+  const pad = 24;
+  const availW = isDesktop ? 420 - pad : window.innerWidth - pad;
+  const availH = (isDesktop ? window.innerHeight * 0.9 : window.innerHeight) - hH - bH - pad;
+
+  CS    = Math.max(22, Math.floor(Math.min(availW / 12.1, availH / 12.3)));
+  FSIZE = Math.max(9,  Math.min(CS * 0.43, 13));
+  RW    = Math.round(CS * 2.1);
+  CH    = Math.round(CS * 2.3);
+
+  const root = document.documentElement;
+  root.style.setProperty('--cs', CS + 'px');
+  root.style.setProperty('--rw', RW + 'px');
+
+  const pa = document.getElementById('puzzleArea');
+  if (pa) {
+    if (isDesktop) { pa.style.flex='none'; pa.style.height=(CH+10*CS+28)+'px'; }
+    else           { pa.style.flex='1';    pa.style.height=''; }
+  }
+}
+
+/* ---- full render ---- */
+function render() {
+  document.getElementById('mistakesVal').textContent = mistakes;
+  document.getElementById('coinsVal').textContent    = coins;
+  renderClues();
+
+  const gEl = document.getElementById('grid');
+  gEl.innerHTML = '';
+  cellEls = [];
+
+  for (let i=0;i<10;i++) {
+    cellEls[i] = [];
+    for (let j=0;j<10;j++) {
+      const el = document.createElement('div');
+      el.className = 'cell';
+      el.dataset.r = i; el.dataset.c = j;
+      cellEls[i][j] = el;
+      el.addEventListener('pointerdown', e => onDown(e,i,j));
+      el.addEventListener('pointerenter', () => onEnter(i,j));
+      el.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        selectTool('cross'); applyTool(i,j,true);
+      });
+      gEl.appendChild(el);
+      renderCell(i,j);
+    }
+  }
+
+  gEl.onpointermove = e => {
+    if (!dragging) return;
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (!target || target.dataset.r===undefined) return;
+    const ti=+target.dataset.r, tj=+target.dataset.c;
+    if (!flashing.has(`${ti},${tj}`) && grid[ti][tj]!==dragValue)
+      commitCell(ti, tj, dragValue);
+  };
+}
+
+/* ---- pointer ---- */
+function onDown(e,i,j) {
+  e.preventDefault();
+  if (solved) return;
+  dragging = true;
+  applyTool(i, j, true);
+  dragValue = grid[i][j];
+}
+function onEnter(i,j) {
+  if (!dragging) return;
+  if (!flashing.has(`${i},${j}`) && grid[i][j]!==dragValue)
+    commitCell(i, j, dragValue);
+}
+window.addEventListener('pointerup',     () => { dragging=false; });
+window.addEventListener('pointercancel', () => { dragging=false; });
+
+/* ---- completion ---- */
+function calcStars() {
+  if (mistakes===0 && seconds<180) return 3;
+  if (mistakes<=2  && seconds<600) return 2;
+  return 1;
+}
+function complete() {
+  solved = true;
+  const gh=document.getElementById('ghostGrid');
+  gh.innerHTML='';
+  for(let i=0;i<10;i++) for(let j=0;j<10;j++) {
+    const d=document.createElement('div');
+    d.style.cssText=`width:32px;height:32px;background:${SOL[i][j]?'#fff':'transparent'}`;
+    gh.appendChild(d);
+  }
+  const px=document.getElementById('pixelGrid');
+  px.innerHTML='';
+  for(let i=0;i<10;i++) for(let j=0;j<10;j++) {
+    const d=document.createElement('div');
+    d.style.cssText=`width:22px;height:22px;box-sizing:border-box;background:${SOL[i][j]?ACCENT:'#eef2f6'};border-right:0.5px solid #fff;border-bottom:0.5px solid #fff`;
+    px.appendChild(d);
+  }
+  const earned=calcStars();
+  const sr=document.getElementById('starsRow');
+  sr.innerHTML='';
+  for(let k=0;k<3;k++) {
+    const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    s.setAttribute('width','38'); s.setAttribute('height','38'); s.setAttribute('viewBox','0 0 24 24');
+    s.style.cssText=`animation:starPop 0.4s ease both;animation-delay:${0.1+k*0.12}s`;
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d','M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 21.4l1.4-6.8L2.2 9.9l6.9-.8z');
+    p.setAttribute('fill', k<earned?'#ffc531':'none');
+    p.setAttribute('stroke', k<earned?'#e8a400':'#ced0d4');
+    p.setAttribute('stroke-width','1.4'); p.setAttribute('stroke-linejoin','round');
+    s.appendChild(p); sr.appendChild(s);
+  }
+  document.getElementById('finalTime').textContent     = fmt(seconds);
+  document.getElementById('finalMistakes').textContent = mistakes;
+  document.getElementById('finalCoins').textContent    = '+' + Math.max(0, 60 - mistakes*5);
+  document.getElementById('completionOverlay').classList.add('active');
+}
+
+function resetGame() {
+  grid=mk(); mistakes=0; coins=12; seconds=0;
+  solved=false; hlRow=-1; hlCol=-1; flashing.clear();
+  document.getElementById('completionOverlay').classList.remove('active');
+  render();
+}
+
+/* ---- buttons ---- */
+document.getElementById('btnHint').addEventListener('click',  () => { if(!solved) hint(); });
+document.getElementById('btnSettings').addEventListener('click', () => {});
+document.getElementById('btnReplay').addEventListener('click', resetGame);
+document.getElementById('btnNext').addEventListener('click',   resetGame);
+document.getElementById('btnShare').addEventListener('click', () => {
+  const txt=`Нонограмма «Сердечко» — ${fmt(seconds)}, ошибки: ${mistakes}`;
+  if (navigator.share) navigator.share({title:'Нонограмма',text:txt});
+  else if (navigator.clipboard) navigator.clipboard.writeText(txt);
+});
+
+/* ---- init ---- */
+function init() {
+  computeSize(); render();
+  requestAnimationFrame(() => { computeSize(); render(); });
+}
+window.addEventListener('resize', () => { computeSize(); render(); });
+init();
+</script>
+</body>
+</html>

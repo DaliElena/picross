@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nanograms",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "3377", "."],
+      "port": 3377
+    }
+  ]
+}
