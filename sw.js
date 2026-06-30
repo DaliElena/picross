@@ -1,4 +1,4 @@
-const CACHE = 'picross-v2';
+const CACHE = 'picross-v3';
 const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS = [
   BASE + '/',
@@ -9,6 +9,7 @@ const ASSETS = [
   BASE + '/js/game.js',
   BASE + '/js/ui.js',
   BASE + '/js/main.js',
+  BASE + '/js/dataset.js',
   BASE + '/manifest.json',
   BASE + '/icons/icon-192.svg',
   BASE + '/icons/icon-512.svg',

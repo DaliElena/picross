@@ -1,6 +1,7 @@
 import { loadPuzzle, computeSize, render, selectTool, hint, resetGame, nextPuzzle, state, setOnPuzzleListUpdate } from './game.js';
 import { openMenu, closeMenu, renderMenuPuzzles, renderHistory } from './ui.js';
 import { PUZZLES } from './puzzles.js';
+import { loadDataset } from './dataset.js';
 
 /* ---- PUZZLE LIST UPDATE CALLBACK ---- */
 setOnPuzzleListUpdate(() => {
@@ -51,6 +52,11 @@ window.addEventListener('resize', () => { computeSize(); render(); });
 
 /* ---- INIT ---- */
 loadPuzzle('heart');
+loadDataset().then(count => {
+  if (count > 0 && document.getElementById('menuPanel').classList.contains('open')) {
+    renderMenuPuzzles();
+  }
+});
 
 /* ---- SERVICE WORKER ---- */
 if ('serviceWorker' in navigator) {
