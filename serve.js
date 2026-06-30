@@ -28,7 +28,7 @@ http.createServer((req, res) => {
     }
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'text/plain',
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+      'Cache-Control': (ext === '.html' || ext === '.js' || ext === '.css') ? 'no-cache' : 'public, max-age=3600',
       'Service-Worker-Allowed': '/',
     });
     res.end(data);

@@ -30,6 +30,11 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+@keyframes hintPulse {
+  0%   { background: rgba(255, 210, 74, 0.45); box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.0); }
+  50%  { background: rgba(255, 210, 74, 0.80); box-shadow: 0 0 10px 4px rgba(255, 200, 0, 0.55); }
+  100% { background: rgba(255, 210, 74, 0.45); box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.0); }
+}
 @keyframes nonoErr {
   0%   { background: transparent; }
   15%  { background: rgba(228,30,63,0.18); }
@@ -124,6 +129,7 @@ body {
   position: relative;
 }
 .cell.flash-err { animation: nonoErr 0.55s ease both; }
+.cell.hint-hl   { animation: hintPulse 1.6s ease-in-out infinite; }
 
 /* ---- BOTTOM BAR ---- */
 #bottomBar {
@@ -182,12 +188,6 @@ body {
 #toolToggle .ti-fill  { opacity: 0.45; }
 #toolToggle.cross .ti-cross { opacity: 1; }
 #toolToggle.fill  .ti-fill  { opacity: 1; }
-.coin-badge {
-  position: absolute; top: -3px; right: -5px;
-  font-size: 9px; font-weight: 700; color: var(--text);
-  background: var(--coin); padding: 1px 5px; border-radius: 100px;
-  border: 1.5px solid #fff; font-family: 'Montserrat', sans-serif;
-}
 
 /* ---- COMPLETION OVERLAY ---- */
 #completionOverlay {

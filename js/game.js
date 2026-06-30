@@ -12,6 +12,7 @@ export const state = {
   coins: 12,
   seconds: 0,
   solved: false,
+  hintCell: null,
   hlRow: -1,
   hlCol: -1,
   activeTool: 'fill',
@@ -82,8 +83,9 @@ export function borderCSS(topSep, leftSep) {
 export function renderCell(i, j) {
   const el = state.cellEls[i]?.[j];
   if (!el || state.flashing.has(`${i},${j}`)) return;
-  const st   = state.grid[i][j];
-  const inHl = state.hlRow === i || state.hlCol === j;
+  const st      = state.grid[i][j];
+  const inHl    = state.hlRow === i || state.hlCol === j;
+  const isHint  = state.hintCell && state.hintCell.i === i && state.hintCell.j === j;
   let bg = 'transparent';
   if (st === 1)    bg = ACCENT;
   else if (inHl)   bg = TINT_HL;
@@ -92,6 +94,7 @@ export function renderCell(i, j) {
   el.style.borderTop  = bt;
   el.style.borderLeft = bl;
   el.style.background = bg;
+  el.classList.toggle('hint-hl', isHint && st !== 1);
 
   if (st === 2) {
     const sz = Math.round(state.CS * 0.42);
@@ -167,14 +170,23 @@ export function commitCell(i, j, val) {
     state.mistakes++;
     document.getElementById('mistakesVal').textContent = state.mistakes;
     flashError(i, j);
+    _clearHint();
     _saveProgress(state);
     return;
   }
+  _clearHint();
   state.grid[i][j] = val;
   renderCell(i, j);
   refreshClueOpacity(i, j);
   if (!state.solved && allSolved()) complete();
   else _saveProgress(state);
+}
+
+function _clearHint() {
+  if (!state.hintCell) return;
+  const { i, j } = state.hintCell;
+  state.hintCell = null;
+  renderCell(i, j);
 }
 
 export function flashError(i, j) {
@@ -197,17 +209,18 @@ export function flashError(i, j) {
 }
 
 export function hint() {
-  if (state.coins < 5) return;
-  for (let i = 0; i < state.N; i++) for (let j = 0; j < state.N; j++) {
-    if (state.SOL[i][j] === 1 && state.grid[i][j] !== 1) {
-      state.coins -= 5;
-      state.grid[i][j] = 1;
-      renderCell(i, j);
-      refreshClueOpacity(i, j);
-      document.getElementById('coinsVal').textContent = state.coins;
-      if (!state.solved && allSolved()) complete();
-      else _saveProgress(state);
-      return;
+  if (state.solved) return;
+  const prev = state.hintCell;
+  const startI = prev ? prev.i : 0;
+  const startJ = prev ? prev.j : 0;
+  for (let i = startI; i < state.N; i++) {
+    for (let j = (i === startI ? startJ : 0); j < state.N; j++) {
+      if (state.SOL[i][j] === 1 && state.grid[i][j] !== 1) {
+        _clearHint();
+        state.hintCell = { i, j };
+        renderCell(i, j);
+        return;
+      }
     }
   }
 }
@@ -243,7 +256,6 @@ export function computeSize() {
 /* ---- FULL RENDER ---- */
 export function render() {
   document.getElementById('mistakesVal').textContent = state.mistakes;
-  document.getElementById('coinsVal').textContent    = state.coins;
   renderClues();
 
   const gEl = document.getElementById('grid');
@@ -380,7 +392,7 @@ export function loadPuzzle(id) {
     state.grid = mk();
     state.mistakes = 0; state.coins = 12; state.seconds = 0;
   }
-  state.solved = false; state.hlRow = -1; state.hlCol = -1; state.flashing.clear();
+  state.solved = false; state.hlRow = -1; state.hlCol = -1; state.hintCell = null; state.flashing.clear();
 
   document.getElementById('headerTitle').textContent = puz.name;
   const badge = document.getElementById('headerBadge');
@@ -399,7 +411,7 @@ export function resetGame() {
   if (!puz) return;
   state.SOL = puz.sol; state.N = puz.size;
   state.grid = mk(); state.mistakes = 0; state.coins = 12; state.seconds = 0;
-  state.solved = false; state.hlRow = -1; state.hlCol = -1; state.flashing.clear();
+  state.solved = false; state.hlRow = -1; state.hlCol = -1; state.hintCell = null; state.flashing.clear();
   document.getElementById('headerTitle').textContent = puz.name;
   const badge = document.getElementById('headerBadge');
   badge.textContent = DIFF_LABEL[puz.difficulty];
