@@ -1326,6 +1326,7 @@ function updatePuzzleListUI() {
    ===================================================================== */
 function renderHistory() {
   const h = loadHistory();
+  const allProgress = loadAllProgress();
   const strip = document.getElementById('historyStatsStrip');
   const list  = document.getElementById('historyList');
 
@@ -1341,7 +1342,69 @@ function renderHistory() {
 
   list.innerHTML = '';
 
-  if (!h.length) {
+  // In-progress puzzles section
+  const progressEntries = Object.entries(allProgress)
+    .map(([id, p]) => ({ id, ...p }))
+    .filter(p => PUZZLES.find(puz => puz.id === p.id))
+    .sort((a, b) => b.savedAt - a.savedAt);
+
+  if (progressEntries.length) {
+    const sectionTitle = document.createElement('div');
+    sectionTitle.className = 'puzzle-section-title';
+    sectionTitle.textContent = 'В процессе';
+    list.appendChild(sectionTitle);
+
+    progressEntries.forEach(prog => {
+      const puz = PUZZLES.find(p => p.id === prog.id);
+      const item = document.createElement('button');
+      item.className = 'history-item';
+      item.style.cssText = 'width:100%;text-align:left;border:none;cursor:pointer;background:rgba(255,210,74,0.10);border-radius:14px;margin-bottom:2px;border-bottom:none';
+
+      const px = Math.floor(44 / puz.size);
+      const savedDate = new Date(prog.savedAt);
+      const dateStr = savedDate.toLocaleDateString('ru-RU', {day:'numeric',month:'short'});
+      const timeStr = savedDate.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
+
+      // Calculate how many cells are filled vs total required
+      const filledCount = prog.grid.flat().filter(v => v === 1).length;
+      const totalCount  = puz.sol.flat().filter(v => v === 1).length;
+      const pct = totalCount ? Math.round(filledCount / totalCount * 100) : 0;
+
+      item.innerHTML = `
+        <div class="history-preview" style="grid-template-columns:repeat(${puz.size},${px}px)"></div>
+        <div class="history-info">
+          <div class="history-name">${puz.name}</div>
+          <div class="history-meta">${puz.size}×${puz.size} · ${dateStr}, ${timeStr}</div>
+          <div style="margin-top:4px;font-size:11px;font-weight:600;color:#b45309">${pct}% заполнено</div>
+        </div>
+        <div class="history-right">
+          <div class="history-time">${fmt(prog.seconds)}</div>
+          <div class="history-mistakes">${prog.mistakes} ош.</div>
+        </div>
+      `;
+
+      const previewEl = item.querySelector('.history-preview');
+      // Show current progress state on preview
+      const progressGrid = prog.grid;
+      previewEl.style.gridTemplateColumns = `repeat(${puz.size}, ${px}px)`;
+      previewEl.innerHTML = '';
+      for (let i = 0; i < puz.size; i++) for (let j = 0; j < puz.size; j++) {
+        const d = document.createElement('div');
+        const val = progressGrid[i][j];
+        d.style.cssText = `width:${px}px;height:${px}px;background:${val===1?ACCENT:'#eef2f6'}`;
+        previewEl.appendChild(d);
+      }
+
+      item.addEventListener('click', () => {
+        loadPuzzle(prog.id);
+        closeMenu();
+      });
+
+      list.appendChild(item);
+    });
+  }
+
+  if (!h.length && !progressEntries.length) {
     list.innerHTML = `
       <div class="history-empty">
         <div class="history-empty-icon">
@@ -1355,14 +1418,18 @@ function renderHistory() {
     return;
   }
 
+  if (h.length) {
+    const sectionTitle = document.createElement('div');
+    sectionTitle.className = 'puzzle-section-title';
+    sectionTitle.textContent = 'Завершённые';
+    list.appendChild(sectionTitle);
+  }
+
   h.forEach(entry => {
     const item = document.createElement('div');
     item.className = 'history-item';
 
     const px = Math.floor(44 / entry.size);
-    const preview = document.createElement('div');
-    preview.className = 'history-preview';
-    buildPreview(entry.sol, entry.size, preview, px);
 
     const date = new Date(entry.date);
     const dateStr = date.toLocaleDateString('ru-RU', {day:'numeric',month:'short'});
