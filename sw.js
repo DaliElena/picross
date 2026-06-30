@@ -1,16 +1,17 @@
-const CACHE = 'picross-v1';
+const CACHE = 'picross-v2';
+const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/puzzles.js',
-  '/js/storage.js',
-  '/js/game.js',
-  '/js/ui.js',
-  '/js/main.js',
-  '/manifest.json',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/css/styles.css',
+  BASE + '/js/puzzles.js',
+  BASE + '/js/storage.js',
+  BASE + '/js/game.js',
+  BASE + '/js/ui.js',
+  BASE + '/js/main.js',
+  BASE + '/manifest.json',
+  BASE + '/icons/icon-192.svg',
+  BASE + '/icons/icon-512.svg',
 ];
 
 self.addEventListener('install', e => {
