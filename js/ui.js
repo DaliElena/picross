@@ -1,5 +1,5 @@
 import { PUZZLES, DIFF_LABEL, ACCENT } from './puzzles.js';
-import { loadHistory, loadAllProgress, getProgress } from './storage.js';
+import { loadHistory, loadAllProgress } from './storage.js';
 import { state, loadPuzzle, fmt } from './game.js';
 
 /* ---- MINI PREVIEW ---- */
@@ -11,6 +11,44 @@ export function buildPreview(sol, size, el, px) {
     d.style.cssText = `width:${px}px;height:${px}px;background:${sol[i][j] ? ACCENT : '#eef2f6'}`;
     el.appendChild(d);
   }
+}
+
+/* ---- CANVAS PREVIEW (для больших списков — 1 узел вместо size² div-ов) ---- */
+const PREVIEW_BOX = 48;
+
+function drawCanvasPreview(canvas) {
+  const pv = canvas._pv;
+  if (!pv || canvas._drawn) return;
+  canvas._drawn = true;
+  const { sol, size } = pv;
+  const dpr = canvas._dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#eef2f6';
+  ctx.fillRect(0, 0, PREVIEW_BOX, PREVIEW_BOX);
+  ctx.fillStyle = ACCENT;
+  const cell = PREVIEW_BOX / size;
+  for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
+    if (sol[i][j]) ctx.fillRect(Math.floor(j * cell), Math.floor(i * cell), Math.ceil(cell), Math.ceil(cell));
+  }
+}
+
+let previewObserver = null;
+function makeCanvasPreview(sol, size) {
+  const dpr = window.devicePixelRatio || 1;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'puzzle-preview';
+  canvas.style.display = 'block';
+  canvas.style.width = PREVIEW_BOX + 'px';
+  canvas.style.height = PREVIEW_BOX + 'px';
+  // Задаём маленький битмап сразу: у canvas по умолчанию 300×150 —
+  // на тысячах узлов это сотни МБ памяти, даже без отрисовки.
+  canvas.width  = PREVIEW_BOX * dpr;
+  canvas.height = PREVIEW_BOX * dpr;
+  canvas._pv = { sol, size };
+  canvas._dpr = dpr;
+  previewObserver.observe(canvas);
+  return canvas;
 }
 
 /* ---- MENU ---- */
@@ -54,10 +92,14 @@ function buildFilters() {
   });
 }
 
-function getBestResult(id) {
-  const h = loadHistory().filter(e => e.puzzleId === id);
-  if (!h.length) return null;
-  return h.reduce((best, e) => (!best || e.stars > best.stars || (e.stars === best.stars && e.time < best.time)) ? e : best, null);
+/* Строит карту лучших результатов по всей истории за один проход */
+function buildBestMap() {
+  const map = {};
+  for (const e of loadHistory()) {
+    const cur = map[e.puzzleId];
+    if (!cur || e.stars > cur.stars || (e.stars === cur.stars && e.time < cur.time)) map[e.puzzleId] = e;
+  }
+  return map;
 }
 
 /* ---- PUZZLES TAB ---- */
@@ -65,6 +107,21 @@ export function renderMenuPuzzles() {
   buildFilters();
   const list = document.getElementById('puzzlesList');
   list.innerHTML = '';
+
+  // Читаем localStorage один раз на весь список, а не по разу на карточку
+  const bestMap = buildBestMap();
+  const allProgress = loadAllProgress();
+
+  // Пересоздаём наблюдатель: старые canvas-узлы уже удалены из DOM
+  if (previewObserver) previewObserver.disconnect();
+  previewObserver = new IntersectionObserver((entries, obs) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        drawCanvasPreview(entry.target);
+        obs.unobserve(entry.target);
+      }
+    }
+  }, { rootMargin: '300px' });
 
   const filtered = activeFilter === 'all'
     ? PUZZLES
@@ -77,22 +134,21 @@ export function renderMenuPuzzles() {
     groups[key].push(p);
   });
 
+  const frag = document.createDocumentFragment();
+
   Object.entries(groups).forEach(([label, puzzles]) => {
     if (activeFilter === 'all') {
       const title = document.createElement('div');
       title.className = 'puzzle-section-title';
       title.textContent = label;
-      list.appendChild(title);
+      frag.appendChild(title);
     }
     puzzles.forEach(p => {
-      const best = getBestResult(p.id);
+      const best = bestMap[p.id] || null;
       const card = document.createElement('button');
       card.className = 'puzzle-card' + (p.id === state.currentPuzzleId ? ' active-puzzle' : '');
 
-      const px = Math.floor(48 / p.size);
-      const preview = document.createElement('div');
-      preview.className = 'puzzle-preview';
-      buildPreview(p.sol, p.size, preview, px);
+      const preview = makeCanvasPreview(p.sol, p.size);
 
       const info = document.createElement('div');
       info.className = 'puzzle-info';
@@ -103,7 +159,7 @@ export function renderMenuPuzzles() {
 
       const status = document.createElement('div');
       status.className = 'puzzle-card-status';
-      const inProgress = !!getProgress(p.id);
+      const inProgress = !!allProgress[p.id];
       if (best) {
         const starsHtml = [0, 1, 2].map(k =>
           `<svg width="12" height="12" viewBox="0 0 24 24">
@@ -128,9 +184,11 @@ export function renderMenuPuzzles() {
         loadPuzzle(p.id);
         closeMenu();
       });
-      list.appendChild(card);
+      frag.appendChild(card);
     });
   });
+
+  list.appendChild(frag);
 }
 
 /* ---- HISTORY TAB ---- */
