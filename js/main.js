@@ -11,7 +11,12 @@ setOnPuzzleListUpdate(() => {
 });
 
 /* ---- MENU ---- */
-document.getElementById('btnMenu').addEventListener('click', openMenu);
+document.getElementById('btnMenu').addEventListener('click', () => {
+  loadDataset().then(count => {
+    if (count > 0) renderMenuPuzzles();
+  });
+  openMenu();
+});
 document.getElementById('btnMenuClose').addEventListener('click', closeMenu);
 document.getElementById('menuBackdrop').addEventListener('click', closeMenu);
 
@@ -52,11 +57,6 @@ window.addEventListener('resize', () => { computeSize(); render(); });
 
 /* ---- INIT ---- */
 loadPuzzle('heart');
-loadDataset().then(count => {
-  if (count > 0 && document.getElementById('menuPanel').classList.contains('open')) {
-    renderMenuPuzzles();
-  }
-});
 
 /* ---- SERVICE WORKER ---- */
 if ('serviceWorker' in navigator) {
