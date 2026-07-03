@@ -1,5 +1,4 @@
 import { PUZZLES } from './puzzles.js';
-import { DATASET_PUZZLES } from './puzzles-dataset.js';
 
 let loaded = false;
 
@@ -15,9 +14,20 @@ function expandSol(masks, size) {
   return sol;
 }
 
-export function loadDataset() {
-  if (loaded) return Promise.resolve(0);
+export async function loadDataset() {
+  if (loaded) return 0;
   loaded = true;
+
+  let DATASET_PUZZLES = window.DATASET_PUZZLES;
+  if (!DATASET_PUZZLES) {
+    try {
+      ({ DATASET_PUZZLES } = await import('./puzzles-dataset.js'));
+      DATASET_PUZZLES = DATASET_PUZZLES || window.DATASET_PUZZLES;
+    } catch (e) {
+      console.warn('Dataset not available:', e);
+      return 0;
+    }
+  }
 
   const existingIds = new Set(PUZZLES.map(p => p.id));
   let count = 0;
@@ -28,5 +38,5 @@ export function loadDataset() {
     count++;
   }
 
-  return Promise.resolve(count);
+  return count;
 }
