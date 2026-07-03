@@ -78,18 +78,29 @@ let activeFilter = 'all';
 function buildFilters() {
   const bar = document.getElementById('filterBar');
   bar.innerHTML = '';
-  const sizes = ['all', ...new Set(PUZZLES.map(p => p.size))].sort((a, b) => a === 'all' ? -1 : a - b);
-  sizes.forEach(s => {
+
+  // Считаем количество нонограмм для каждого размера за один проход
+  const counts = {};
+  for (const p of PUZZLES) counts[p.size] = (counts[p.size] || 0) + 1;
+  // Все размеры, отсортированные по возрастанию — показываем каждый вариант из датасета
+  const sizes = Object.keys(counts).map(Number).sort((a, b) => a - b);
+
+  const addChip = (value, label, count) => {
     const chip = document.createElement('button');
-    chip.className = 'filter-chip' + (activeFilter === s ? ' active' : '');
-    chip.textContent = s === 'all' ? 'Все' : `${s}×${s}`;
+    chip.className = 'filter-chip' + (activeFilter === value ? ' active' : '');
+    chip.innerHTML =
+      `<span class="filter-chip-label">${label}</span>` +
+      `<span class="filter-chip-count">${count}</span>`;
     chip.addEventListener('click', () => {
-      activeFilter = s;
+      activeFilter = value;
       buildFilters();
       renderMenuPuzzles();
     });
     bar.appendChild(chip);
-  });
+  };
+
+  addChip('all', 'Все', PUZZLES.length);
+  sizes.forEach(s => addChip(s, `${s}×${s}`, counts[s]));
 }
 
 /* Строит карту лучших результатов по всей истории за один проход */

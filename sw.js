@@ -1,4 +1,4 @@
-const CACHE = 'picross-v5';
+const CACHE = 'picross-v6';
 const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS = [
   BASE + '/',
@@ -34,6 +34,7 @@ self.addEventListener('fetch', e => {
   // чтобы новые деплои подхватывались без ручной смены версии кэша.
   const isFresh = e.request.mode === 'navigate'
     || url.pathname.endsWith('/bundle.js')
+    || url.pathname.endsWith('/css/styles.css')
     || url.pathname.endsWith('/index.html')
     || url.pathname === BASE + '/';
 
