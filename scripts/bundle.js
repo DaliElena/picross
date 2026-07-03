@@ -17,7 +17,16 @@ const FILES = [
 ];
 
 function transform(code, filename) {
-  // Remove all import lines
+  // Strip named-import lines, but keep `X as Y` aliases as const assignments
+  // (everything is bundled into one scope, so `Y` must still resolve to `X`).
+  code = code.replace(/^import\s+\{([^}]*)\}\s*from\s+['"][^'"]+['"]\s*;?\r?\n/gm, (_m, names) => {
+    const aliases = names.split(',')
+      .map(part => part.trim().match(/^(\S+)\s+as\s+(\S+)$/))
+      .filter(Boolean)
+      .map(([, original, alias]) => `const ${alias} = ${original};`);
+    return aliases.length ? aliases.join('\n') + '\n' : '';
+  });
+  // Remove any remaining import lines (default, namespace, or side-effect imports)
   code = code.replace(/^import\s[\s\S]*?from\s+['"][^'"]+['"]\s*;?\r?\n/gm, '');
   // Remove export keyword from declarations
   code = code.replace(/^export\s+((?:async\s+)?(?:function|class|const|let|var)\s)/gm, '$1');

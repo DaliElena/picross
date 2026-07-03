@@ -13,7 +13,10 @@ setOnPuzzleListUpdate(() => {
 /* ---- MENU ---- */
 document.getElementById('btnMenu').addEventListener('click', () => {
   loadDataset().then(count => {
-    if (count > 0) renderMenuPuzzles();
+    if (count > 0) {
+      renderMenuPuzzles();
+      renderHistory();
+    }
   });
   openMenu();
 });

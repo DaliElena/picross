@@ -179,6 +179,7 @@ function getProgress(id) {
 }
 
 // ===== game.js =====
+const _saveProgress = saveProgress;
 
 /* ---- STATE ---- */
 const state = {
@@ -984,7 +985,10 @@ setOnPuzzleListUpdate(() => {
 /* ---- MENU ---- */
 document.getElementById('btnMenu').addEventListener('click', () => {
   loadDataset().then(count => {
-    if (count > 0) renderMenuPuzzles();
+    if (count > 0) {
+      renderMenuPuzzles();
+      renderHistory();
+    }
   });
   openMenu();
 });
