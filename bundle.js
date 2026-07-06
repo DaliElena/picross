@@ -181,6 +181,9 @@ function getProgress(id) {
 // ===== game.js =====
 const _saveProgress = saveProgress;
 
+/* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
+const APP_W = 460;
+
 /* ---- STATE ---- */
 const state = {
   currentPuzzleId: 'heart',
@@ -200,6 +203,9 @@ const state = {
   dragValue: 0,
   flashing: new Set(),
   CS: 29,
+  baseCS: 29,     // размер клетки при zoom=1 (вписанный в экран)
+  zoom: 1,        // текущий масштаб (1 = вписано, >1 = увеличено)
+  gesture: false, // активен жест двумя пальцами (перемещение/масштаб)
   RW: 58,
   CH: 66,
   FSIZE: 12.5,
@@ -406,18 +412,55 @@ function hint() {
 }
 
 /* ---- LAYOUT ---- */
+// Резерв под подсказки по фактическим данным пазла (а не по худшему случаю):
+// ширина колонки подсказок строк = самая длинная строка чисел,
+// высота полосы подсказок столбцов = самый высокий столбик чисел.
+function clueReserves(fs) {
+  const digitW = fs * 0.62;   // моноширинный шрифт ≈ 0.62em на символ
+  let rw = 0, ch = 0;
+  for (let i = 0; i < state.N; i++) {
+    const nums = lineClues(state.SOL[i]);
+    let w = 6;                // padding-right у .row-clue
+    nums.forEach((n, k) => { w += String(n).length * digitW; if (k) w += 5; }); // gap:5px
+    if (w > rw) rw = w;
+  }
+  for (let j = 0; j < state.N; j++) {
+    const nums = lineClues(state.SOL.map(r => r[j]));
+    const h = 4 + nums.length * fs * 1.1 + Math.max(0, nums.length - 1); // padding-bottom + строки + gap:1px
+    if (h > ch) ch = h;
+  }
+  return { rw: Math.ceil(rw) + 4, ch: Math.ceil(ch) + 2 }; // небольшой запас
+}
+
 function computeSize() {
   const isDesktop = window.innerWidth >= 600;
   const hH = document.getElementById('header')?.getBoundingClientRect().height  || 62;
   const bH = document.getElementById('bottomBar')?.getBoundingClientRect().height || 82;
   const pad = 24;
-  const availW = isDesktop ? 420 - pad : window.innerWidth - pad;
-  const availH = (isDesktop ? window.innerHeight * 0.9 : window.innerHeight) - hH - bH - pad;
+  const availW = isDesktop ? APP_W - pad : window.innerWidth - pad;
+  const availH = (isDesktop ? window.innerHeight * 0.96 : window.innerHeight) - hH - bH - pad;
 
-  state.CS    = Math.max(18, Math.floor(Math.min(availW / (state.N * 1.21 + 2), availH / (state.N * 1.23 + 2))));
-  state.FSIZE = Math.max(8, Math.min(state.CS * 0.43, 13));
-  state.RW    = Math.round(state.CS * (state.N <= 5 ? 1.8 : 2.1));
-  state.CH    = Math.round(state.CS * (state.N <= 5 ? 2.0 : 2.3));
+  // Минимальный комфортный размер клетки:
+  //  · десктоп — держим клетки крупными, крупная доска уходит в прокрутку (мышь);
+  //  · тач — доска влезает целиком (мелкая клетка на больших сетках), а крупные
+  //    клетки добираются масштабом (кнопки зума / щипок двумя пальцами).
+  const MIN_CS = isDesktop ? 22 : 10;
+
+  // Размер клетки и резерв под подсказки взаимозависимы (резерв зависит от шрифта,
+  // шрифт — от клетки). Сходимся за несколько итераций.
+  let base = Math.max(MIN_CS, Math.floor(availW / (state.N + 2.1)));
+  for (let pass = 0; pass < 4; pass++) {
+    const fs = Math.max(8, Math.min(base * 0.43, 13));
+    const { rw, ch } = clueReserves(fs);
+    base = Math.max(MIN_CS, Math.floor(Math.min((availW - rw) / state.N, (availH - ch) / state.N)));
+  }
+  state.baseCS = base;
+
+  // Применяем масштаб: итоговая клетка = вписанная × zoom (zoom ≥ 1).
+  const CS = Math.max(8, Math.round(base * state.zoom));
+  state.CS    = CS;
+  state.FSIZE = Math.max(8, Math.min(CS * 0.43, 13));
+  ({ rw: state.RW, ch: state.CH } = clueReserves(state.FSIZE));
 
   const root = document.documentElement;
   root.style.setProperty('--cs', state.CS + 'px');
@@ -425,12 +468,53 @@ function computeSize() {
 
   const pa = document.getElementById('puzzleArea');
   if (pa) {
-    if (isDesktop) { pa.style.flex = 'none'; pa.style.height = (state.CH + state.N * state.CS + 28) + 'px'; }
-    else           { pa.style.flex = '1';    pa.style.height = ''; }
+    if (isDesktop) {
+      // Высота карточки подгоняется под доску, но не выходит за пределы окна —
+      // крупные сетки прокручиваются внутри вьюпорта, а не растягивают карточку.
+      // +30 = вертикальные отступы #puzzleArea (14+14) и рамка сетки.
+      const contentH = state.CH + state.N * state.CS + 30;
+      pa.style.flex = 'none';
+      pa.style.height = Math.min(contentH, availH) + 'px';
+    } else {
+      pa.style.flex = '1'; pa.style.height = '';
+    }
   }
 
   const gEl = document.getElementById('grid');
   if (gEl) gEl.style.gridTemplateColumns = `repeat(${state.N}, ${state.CS}px)`;
+
+  updateZoomUI();
+}
+
+const ZOOM_MIN = 1, ZOOM_MAX = 4;
+
+// Изменить масштаб, сохранив точку в центре вьюпорта (как в картах/редакторах).
+function setZoom(z) {
+  const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  if (Math.abs(next - state.zoom) < 0.001 && state.CS === Math.round(state.baseCS * next)) return;
+
+  const pa = document.getElementById('puzzleArea');
+  let fx = 0.5, fy = 0.5;
+  if (pa && pa.scrollWidth > 0) {
+    fx = (pa.scrollLeft + pa.clientWidth / 2)  / pa.scrollWidth;
+    fy = (pa.scrollTop  + pa.clientHeight / 2) / pa.scrollHeight;
+  }
+
+  state.zoom = next;
+  computeSize();
+  render();
+
+  if (pa) {
+    pa.scrollLeft = fx * pa.scrollWidth  - pa.clientWidth / 2;
+    pa.scrollTop  = fy * pa.scrollHeight - pa.clientHeight / 2;
+  }
+}
+
+function updateZoomUI() {
+  const out = document.getElementById('btnZoomOut');
+  const inn = document.getElementById('btnZoomIn');
+  if (out) out.disabled = state.zoom <= ZOOM_MIN + 0.001;
+  if (inn) inn.disabled = state.zoom >= ZOOM_MAX - 0.001;
 }
 
 /* ---- FULL RENDER ---- */
@@ -474,7 +558,7 @@ function render() {
 /* ---- POINTER ---- */
 function onDown(e, i, j) {
   e.preventDefault();
-  if (state.solved) return;
+  if (state.solved || state.gesture) return;
   state.dragging = true;
   applyTool(i, j, true);
   state.dragValue = state.grid[i][j];
@@ -573,6 +657,7 @@ function loadPuzzle(id) {
     state.mistakes = 0; state.coins = 12; state.seconds = 0;
   }
   state.solved = false; state.hlRow = -1; state.hlCol = -1; state.hintCell = null; state.flashing.clear();
+  state.zoom = 1;
 
   document.getElementById('headerTitle').textContent = puz.name;
   const badge = document.getElementById('headerBadge');
@@ -1038,8 +1123,76 @@ document.getElementById('btnShare').addEventListener('click', () => {
 window.addEventListener('pointerup',     () => { state.dragging = false; });
 window.addEventListener('pointercancel', () => { state.dragging = false; });
 
+/* ---- ZOOM: buttons ---- */
+document.getElementById('btnZoomIn').addEventListener('click',  () => setZoom(state.zoom * 1.3));
+document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(state.zoom / 1.3));
+document.getElementById('btnZoomFit').addEventListener('click', () => setZoom(1));
+
+/* ---- ZOOM: масштаб вокруг точки (для щипка и ctrl+колеса) ---- */
+const puzzleArea = document.getElementById('puzzleArea');
+function zoomAt(nz, cx, cy) {
+  nz = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, nz));
+  const targetCS = Math.max(8, Math.round(state.baseCS * nz));
+  if (targetCS === state.CS) { state.zoom = nz; return; }   // размер клетки не изменится — не перерисовываем
+  const r = puzzleArea.getBoundingClientRect();
+  const bx = puzzleArea.scrollLeft + (cx - r.left);          // точка доски под фокусом
+  const by = puzzleArea.scrollTop  + (cy - r.top);
+  const ow = puzzleArea.scrollWidth, oh = puzzleArea.scrollHeight;
+  state.zoom = nz;
+  computeSize(); render();
+  const rx = puzzleArea.scrollWidth / ow, ry = puzzleArea.scrollHeight / oh;
+  puzzleArea.scrollLeft = bx * rx - (cx - r.left);           // держим ту же точку под фокусом
+  puzzleArea.scrollTop  = by * ry - (cy - r.top);
+}
+
+/* ctrl/⌘ + колесо — зум на десктопе */
+puzzleArea.addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  zoomAt(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
+}, { passive: false });
+
+/* ---- ЖЕСТЫ: два пальца — перемещение + щипок ---- */
+const pts = new Map();
+let lastMid = null, lastDist = 0;
+function midDist() {
+  const a = [...pts.values()];
+  const mx = (a[0].x + a[1].x) / 2, my = (a[0].y + a[1].y) / 2;
+  return { mx, my, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) };
+}
+puzzleArea.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'touch') return;
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pts.size === 2) {
+    state.gesture = true; state.dragging = false;       // второй палец — переходим в режим навигации
+    const m = midDist(); lastMid = { x: m.mx, y: m.my }; lastDist = m.d;
+  }
+});
+puzzleArea.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'touch' || !pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!state.gesture || pts.size < 2) return;
+  e.preventDefault();
+  const m = midDist();
+  puzzleArea.scrollLeft -= (m.mx - lastMid.x);            // перемещение по midpoint
+  puzzleArea.scrollTop  -= (m.my - lastMid.y);
+  if (lastDist > 0 && Math.abs(m.d / lastDist - 1) > 0.01)
+    zoomAt(state.zoom * (m.d / lastDist), m.mx, m.my);    // щипок
+  lastMid = { x: m.mx, y: m.my }; lastDist = m.d;
+}, { passive: false });
+function endPointer(e) {
+  if (!pts.has(e.pointerId)) return;
+  pts.delete(e.pointerId);
+  if (pts.size < 2) {
+    lastMid = null; lastDist = 0;
+    setTimeout(() => { if (pts.size < 2) state.gesture = false; }, 0);
+  }
+}
+puzzleArea.addEventListener('pointerup', endPointer);
+puzzleArea.addEventListener('pointercancel', endPointer);
+
 /* ---- RESIZE ---- */
-window.addEventListener('resize', () => { computeSize(); render(); });
+window.addEventListener('resize', () => { state.zoom = 1; computeSize(); render(); });
 
 /* ---- INIT ---- */
 loadPuzzle('heart');

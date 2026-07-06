@@ -90,12 +90,29 @@ body {
 .mistakes-lbl { font-size: 11.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
 
 /* ---- PUZZLE AREA ---- */
+/* Скроллируемый вьюпорт: большие сетки не ужимаются, а прокручиваются.
+   safe-center держит доску по центру, но не прячет верх/лево при переполнении. */
 #puzzleArea {
   flex: 1; min-height: 0;
-  display: flex; align-items: flex-start; justify-content: center;
-  padding: 14px 12px; overflow: hidden;
+  display: flex; align-items: safe center; justify-content: safe center;
+  padding: 14px 12px; overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
 #puzzleWrap { display: inline-block; }
+
+/* «Примороженные» подсказки: колонка слева и полоса сверху остаются
+   на виду при прокрутке большой доски (как фиксированные заголовки таблицы). */
+#colCluesWrap {
+  display: flex;
+  position: sticky; top: 0; z-index: 3;
+  background: var(--bg);
+}
+#gridRow { display: flex; }
+#rowClues {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--bg);
+}
 
 #colClues { display: flex; }
 .col-clue {
@@ -120,6 +137,7 @@ body {
   display: grid;
   border-right: 1.5px solid var(--sep);
   border-bottom: 1.5px solid var(--sep);
+  /* none: одним пальцем рисуем; жесты двумя пальцами обрабатываем сами (JS) */
   touch-action: none; user-select: none;
 }
 .cell {
@@ -128,6 +146,25 @@ body {
   cursor: pointer; touch-action: none; user-select: none;
   position: relative;
 }
+
+/* ---- ZOOM CONTROL ---- */
+#zoomCtl {
+  position: fixed; right: 14px; bottom: 96px; z-index: 8;
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border); border-radius: 100px;
+  padding: 6px; box-shadow: 0 4px 16px rgba(16,24,32,0.14);
+}
+.zoom-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: background 0.12s, opacity 0.12s;
+}
+.zoom-btn:hover { background: #e6ebf0; }
+.zoom-btn:disabled { opacity: 0.35; cursor: default; }
+.zoom-btn:active { background: #dde3e9; }
 .cell.flash-err { animation: nonoErr 0.55s ease both; }
 .cell.hint-hl   { animation: hintPulse 1.6s ease-in-out infinite; }
 
@@ -413,9 +450,12 @@ body {
 @media (min-width: 600px) {
   body { background: #f1f4f7; align-items: center; justify-content: center; overflow: auto; }
   #app {
-    width: 420px; background: #fff; border-radius: 24px;
+    width: 460px; background: #fff; border-radius: 24px;
     box-shadow: 0 20px 60px rgba(16,24,32,0.16);
     display: flex; flex-direction: column; overflow: hidden;
+    position: relative;
   }
+  /* привязываем зум-контрол к карточке, а не к окну */
+  #zoomCtl { position: absolute; right: 12px; bottom: 92px; }
 }
 @media (max-width: 599px) { #app { display: contents; } }
