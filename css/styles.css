@@ -95,11 +95,14 @@ body {
 #puzzleArea {
   flex: 1; min-height: 0;
   display: flex; align-items: safe center; justify-content: safe center;
-  padding: 14px 12px; overflow: auto;
+  overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
-#puzzleWrap { display: inline-block; }
+/* Отступы живут на обёртке, а не на скролл-контейнере: sticky-подсказки
+   липнут к контентному краю скроллпорта, и при padding на #puzzleArea
+   в этой полосе просвечивала прокрученная сетка. */
+#puzzleWrap { display: inline-block; padding: 14px 12px; }
 
 /* «Примороженные» подсказки: колонка слева и полоса сверху остаются
    на виду при прокрутке большой доски (как фиксированные заголовки таблицы). */

@@ -471,7 +471,7 @@ function computeSize() {
     if (isDesktop) {
       // Высота карточки подгоняется под доску, но не выходит за пределы окна —
       // крупные сетки прокручиваются внутри вьюпорта, а не растягивают карточку.
-      // +30 = вертикальные отступы #puzzleArea (14+14) и рамка сетки.
+      // +30 = вертикальные отступы #puzzleWrap (14+14) и рамка сетки.
       const contentH = state.CH + state.N * state.CS + 30;
       pa.style.flex = 'none';
       pa.style.height = Math.min(contentH, availH) + 'px';
@@ -1191,10 +1191,46 @@ function endPointer(e) {
   if (pts.size < 2) {
     lastMid = null; lastDist = 0;
     setTimeout(() => { if (pts.size < 2) state.gesture = false; }, 0);
+    scheduleSnap();
   }
 }
 puzzleArea.addEventListener('pointerup', endPointer);
 puzzleArea.addEventListener('pointercancel', endPointer);
+
+/* ---- ПРИВЯЗКА СКРОЛЛА: после остановки прокрутки выравниваем позицию по
+   границе клетки, чтобы под примороженными подсказками не висели обрезанные
+   пол-строки/пол-столбцы ---- */
+let snapTimer = 0, scrollbarHeld = false;
+puzzleArea.addEventListener('mousedown', () => { scrollbarHeld = true; });
+window.addEventListener('mouseup', () => { scrollbarHeld = false; scheduleSnap(); });
+
+// Ближайшая «чистая» позиция оси: 0, целиком видимый отступ (base) или
+// base + k·CS (граница строки/столбца ровно под полосой подсказок).
+function snapAxis(cur, max, base, cs) {
+  if (max <= 1 || cur <= 1 || max - cur <= 1) return cur;   // на краях не дёргаем
+  const t = cur < base
+    ? (cur < base / 2 ? 0 : base)
+    : base + Math.round((cur - base) / cs) * cs;
+  return Math.min(max, Math.max(0, t));
+}
+
+function snapScroll() {
+  if (state.gesture || scrollbarHeld || state.dragging) return; // перепланируется на mouseup/endPointer
+  const st = puzzleArea.scrollTop, sl = puzzleArea.scrollLeft;
+  const maxT = puzzleArea.scrollHeight - puzzleArea.clientHeight;
+  const maxL = puzzleArea.scrollWidth  - puzzleArea.clientWidth;
+  const pa = puzzleArea.getBoundingClientRect();
+  const g  = document.getElementById('grid').getBoundingClientRect();
+  // Отступ над/слева от сетки в координатах прокрутки (= padding #puzzleWrap).
+  const baseY = g.top  - pa.top  + st - document.getElementById('colCluesWrap').getBoundingClientRect().height;
+  const baseX = g.left - pa.left + sl - document.getElementById('rowClues').getBoundingClientRect().width;
+  const nt = snapAxis(st, maxT, baseY, state.CS);
+  const nl = snapAxis(sl, maxL, baseX, state.CS);
+  if (Math.abs(nt - st) < 1 && Math.abs(nl - sl) < 1) return;
+  puzzleArea.scrollTo({ top: nt, left: nl, behavior: 'smooth' });
+}
+function scheduleSnap() { clearTimeout(snapTimer); snapTimer = setTimeout(snapScroll, 150); }
+puzzleArea.addEventListener('scroll', scheduleSnap, { passive: true });
 
 /* ---- RESIZE ---- */
 window.addEventListener('resize', () => { state.zoom = 1; computeSize(); render(); });

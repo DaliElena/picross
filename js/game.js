@@ -291,7 +291,7 @@ export function computeSize() {
     if (isDesktop) {
       // Высота карточки подгоняется под доску, но не выходит за пределы окна —
       // крупные сетки прокручиваются внутри вьюпорта, а не растягивают карточку.
-      // +30 = вертикальные отступы #puzzleArea (14+14) и рамка сетки.
+      // +30 = вертикальные отступы #puzzleWrap (14+14) и рамка сетки.
       const contentH = state.CH + state.N * state.CS + 30;
       pa.style.flex = 'none';
       pa.style.height = Math.min(contentH, availH) + 'px';
