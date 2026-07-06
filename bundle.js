@@ -134,8 +134,8 @@ const PUZZLES = [
 const DIFF_LABEL = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' };
 const DIFF_CLASS  = { easy: 'easy',  medium: '',       hard: 'hard' };
 const ACCENT   = '#0064e0';
-const LINE     = '#e2e7ec';
-const SEP      = '#aeb8c2';
+const LINE     = '#b9c2cc';
+const SEP      = '#7a8794';
 const TINT_HL  = 'rgba(0,100,224,0.18)';
 
 // ===== puzzles-dataset.js =====
