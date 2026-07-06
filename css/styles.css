@@ -147,20 +147,28 @@ body {
   position: relative;
 }
 
-/* ---- ZOOM CONTROL ---- */
+/* ---- ZOOM CONTROL (в нижней панели) ---- */
 #zoomCtl {
-  position: fixed; right: 14px; bottom: 96px; z-index: 8;
-  display: flex; flex-direction: column; gap: 6px;
-  background: rgba(255,255,255,0.86);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--border); border-radius: 100px;
-  padding: 6px; box-shadow: 0 4px 16px rgba(16,24,32,0.14);
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface);
+  border-radius: 100px;
+  padding: 5px;
 }
+.zoom-buttons {
+  display: flex; align-items: center; gap: 6px;
+  overflow: hidden;
+  max-width: 120px; opacity: 1;
+  transition: max-width 0.22s cubic-bezier(.4,0,.2,1), opacity 0.18s, margin 0.22s;
+}
+#zoomCtl.collapsed .zoom-buttons {
+  max-width: 0; opacity: 0; margin-left: -6px;
+}
+#zoomCtl.collapsed #btnZoomToggle { color: var(--accent); }
 .zoom-btn {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--surface); border: none; cursor: pointer;
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: #fff; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text2); transition: background 0.12s, opacity 0.12s;
+  color: var(--text2); transition: background 0.12s, opacity 0.12s, color 0.12s;
 }
 .zoom-btn:hover { background: #e6ebf0; }
 .zoom-btn:disabled { opacity: 0.35; cursor: default; }
@@ -173,7 +181,7 @@ body {
   flex-shrink: 0;
   border-top: 1px solid var(--border);
   padding: 10px 16px 14px;
-  display: flex; align-items: center; justify-content: center; gap: 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: var(--bg);
 }
 .bar-btn {
@@ -455,7 +463,5 @@ body {
     display: flex; flex-direction: column; overflow: hidden;
     position: relative;
   }
-  /* привязываем зум-контрол к карточке, а не к окну */
-  #zoomCtl { position: absolute; right: 12px; bottom: 92px; }
 }
 @media (max-width: 599px) { #app { display: contents; } }

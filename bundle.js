@@ -1127,6 +1127,11 @@ window.addEventListener('pointercancel', () => { state.dragging = false; });
 document.getElementById('btnZoomIn').addEventListener('click',  () => setZoom(state.zoom * 1.3));
 document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(state.zoom / 1.3));
 document.getElementById('btnZoomFit').addEventListener('click', () => setZoom(1));
+document.getElementById('btnZoomToggle').addEventListener('click', () => {
+  const ctl = document.getElementById('zoomCtl');
+  const collapsed = ctl.classList.toggle('collapsed');
+  document.getElementById('btnZoomToggle').setAttribute('aria-expanded', String(!collapsed));
+});
 
 /* ---- ZOOM: масштаб вокруг точки (для щипка и ctrl+колеса) ---- */
 const puzzleArea = document.getElementById('puzzleArea');
