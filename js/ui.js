@@ -114,6 +114,62 @@ function buildBestMap() {
 }
 
 /* ---- PUZZLES TAB ---- */
+function makeSectionTitle(label) {
+  const title = document.createElement('div');
+  title.className = 'puzzle-section-title';
+  title.textContent = label;
+  return title;
+}
+
+function makePuzzleCard(p, bestMap, allProgress) {
+  const best = bestMap[p.id] || null;
+  const card = document.createElement('button');
+  card.className = 'puzzle-card' + (p.id === state.currentPuzzleId ? ' active-puzzle' : '');
+
+  const preview = makeCanvasPreview(p.sol, p.size);
+
+  const info = document.createElement('div');
+  info.className = 'puzzle-info';
+  info.innerHTML = `
+    <div class="puzzle-card-name">${p.name}</div>
+    <div class="puzzle-card-meta">${p.size}×${p.size} · ${DIFF_LABEL[p.difficulty]}</div>
+  `;
+
+  const status = document.createElement('div');
+  status.className = 'puzzle-card-status';
+  const inProgress = !!allProgress[p.id];
+  if (best) {
+    const starsHtml = [0, 1, 2].map(k =>
+      `<svg width="12" height="12" viewBox="0 0 24 24">
+        <path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 21.4l1.4-6.8L2.2 9.9l6.9-.8z"
+          fill="${k < best.stars ? '#ffc531' : 'none'}" stroke="${k < best.stars ? '#e8a400' : '#ced0d4'}" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>`
+    ).join('');
+    status.innerHTML = `<div style="display:flex;gap:1px">${starsHtml}</div>`;
+  } else if (inProgress) {
+    const dot = document.createElement('div');
+    dot.className = 'status-dot inprogress';
+    dot.title = 'В процессе';
+    status.appendChild(dot);
+  } else {
+    const dot = document.createElement('div');
+    dot.className = 'status-dot';
+    status.appendChild(dot);
+  }
+
+  card.append(preview, info, status);
+  card.addEventListener('click', () => {
+    loadPuzzle(p.id);
+    closeMenu();
+  });
+  return card;
+}
+
+/* Порционный рендер: карточки добавляются по CHUNK штук по мере прокрутки,
+   иначе на полном каталоге (~1900 узлов) меню открывается с фризом в 1–2 с. */
+const CHUNK = 60;
+let chunkObserver = null;
+
 export function renderMenuPuzzles() {
   buildFilters();
   const list = document.getElementById('puzzlesList');
@@ -123,7 +179,7 @@ export function renderMenuPuzzles() {
   const bestMap = buildBestMap();
   const allProgress = loadAllProgress();
 
-  // Пересоздаём наблюдатель: старые canvas-узлы уже удалены из DOM
+  // Пересоздаём наблюдатели: старые узлы уже удалены из DOM
   if (previewObserver) previewObserver.disconnect();
   previewObserver = new IntersectionObserver((entries, obs) => {
     for (const entry of entries) {
@@ -133,6 +189,7 @@ export function renderMenuPuzzles() {
       }
     }
   }, { rootMargin: '300px' });
+  if (chunkObserver) chunkObserver.disconnect();
 
   const filtered = activeFilter === 'all'
     ? PUZZLES
@@ -145,61 +202,44 @@ export function renderMenuPuzzles() {
     groups[key].push(p);
   });
 
-  const frag = document.createDocumentFragment();
-
+  // Плоская очередь узлов: заголовки секций вперемешку с карточками
+  const queue = [];
   Object.entries(groups).forEach(([label, puzzles]) => {
-    if (activeFilter === 'all') {
-      const title = document.createElement('div');
-      title.className = 'puzzle-section-title';
-      title.textContent = label;
-      frag.appendChild(title);
-    }
-    puzzles.forEach(p => {
-      const best = bestMap[p.id] || null;
-      const card = document.createElement('button');
-      card.className = 'puzzle-card' + (p.id === state.currentPuzzleId ? ' active-puzzle' : '');
-
-      const preview = makeCanvasPreview(p.sol, p.size);
-
-      const info = document.createElement('div');
-      info.className = 'puzzle-info';
-      info.innerHTML = `
-        <div class="puzzle-card-name">${p.name}</div>
-        <div class="puzzle-card-meta">${p.size}×${p.size} · ${DIFF_LABEL[p.difficulty]}</div>
-      `;
-
-      const status = document.createElement('div');
-      status.className = 'puzzle-card-status';
-      const inProgress = !!allProgress[p.id];
-      if (best) {
-        const starsHtml = [0, 1, 2].map(k =>
-          `<svg width="12" height="12" viewBox="0 0 24 24">
-            <path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 21.4l1.4-6.8L2.2 9.9l6.9-.8z"
-              fill="${k < best.stars ? '#ffc531' : 'none'}" stroke="${k < best.stars ? '#e8a400' : '#ced0d4'}" stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>`
-        ).join('');
-        status.innerHTML = `<div style="display:flex;gap:1px">${starsHtml}</div>`;
-      } else if (inProgress) {
-        const dot = document.createElement('div');
-        dot.className = 'status-dot inprogress';
-        dot.title = 'В процессе';
-        status.appendChild(dot);
-      } else {
-        const dot = document.createElement('div');
-        dot.className = 'status-dot';
-        status.appendChild(dot);
-      }
-
-      card.append(preview, info, status);
-      card.addEventListener('click', () => {
-        loadPuzzle(p.id);
-        closeMenu();
-      });
-      frag.appendChild(card);
-    });
+    if (activeFilter === 'all') queue.push({ title: label });
+    puzzles.forEach(p => queue.push({ p }));
   });
 
-  list.appendChild(frag);
+  let pos = 0;
+  const renderChunk = () => {
+    const frag = document.createDocumentFragment();
+    for (const end = Math.min(pos + CHUNK, queue.length); pos < end; pos++) {
+      const item = queue[pos];
+      frag.appendChild(item.title ? makeSectionTitle(item.title) : makePuzzleCard(item.p, bestMap, allProgress));
+    }
+    list.appendChild(frag);
+  };
+
+  renderChunk();
+  if (pos >= queue.length) return;
+
+  const sentinel = document.createElement('div');
+  sentinel.style.height = '1px';
+  list.appendChild(sentinel);
+  chunkObserver = new IntersectionObserver(entries => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    renderChunk();
+    if (pos >= queue.length) {
+      chunkObserver.disconnect();
+      sentinel.remove();
+      return;
+    }
+    list.appendChild(sentinel);
+    // Пере-подписка форсирует новую доставку состояния: после сдвига sentinel
+    // вниз он может остаться в зоне видимости без изменения пересечения.
+    chunkObserver.unobserve(sentinel);
+    chunkObserver.observe(sentinel);
+  }, { root: list, rootMargin: '600px' });
+  chunkObserver.observe(sentinel);
 }
 
 /* ---- HISTORY TAB ---- */
