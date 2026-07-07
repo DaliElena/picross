@@ -1297,8 +1297,20 @@ function snapScroll() {
 function scheduleSnap() { clearTimeout(snapTimer); snapTimer = setTimeout(snapScroll, 150); }
 puzzleArea.addEventListener('scroll', scheduleSnap, { passive: true });
 
-/* ---- RESIZE ---- */
-window.addEventListener('resize', () => { state.zoom = 1; computeSize(); render(); });
+/* ---- RESIZE: пересчитываем вписанный размер (baseCS), не трогая зум —
+   на мобильных resize происходит сам (адресная строка, клавиатура), и сброс
+   масштаба терял позицию игрока. Точку в центре вьюпорта держим, как в setZoom.
+   Зум сбрасывается только при смене пазла (loadPuzzle). ---- */
+window.addEventListener('resize', () => {
+  let fx = 0.5, fy = 0.5;
+  if (puzzleArea.scrollWidth > 0) {
+    fx = (puzzleArea.scrollLeft + puzzleArea.clientWidth / 2)  / puzzleArea.scrollWidth;
+    fy = (puzzleArea.scrollTop  + puzzleArea.clientHeight / 2) / puzzleArea.scrollHeight;
+  }
+  computeSize(); render();
+  puzzleArea.scrollLeft = fx * puzzleArea.scrollWidth  - puzzleArea.clientWidth / 2;
+  puzzleArea.scrollTop  = fy * puzzleArea.scrollHeight - puzzleArea.clientHeight / 2;
+});
 
 /* ---- INIT ---- */
 loadPuzzle('heart');
