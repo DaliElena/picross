@@ -32,9 +32,10 @@ export async function loadDataset() {
   const existingIds = new Set(PUZZLES.map(p => p.id));
   let count = 0;
 
-  for (const [id, name, size, difficulty, masks] of DATASET_PUZZLES) {
+  for (const [id, name, size, difficulty, masks, passes] of DATASET_PUZZLES) {
     if (existingIds.has(id)) continue;
-    PUZZLES.push({ id, name, size, difficulty, sol: expandSol(masks, size) });
+    // passes — число проходов line-solver'а (метрика сложности из build-dataset.js)
+    PUZZLES.push({ id, name, size, difficulty, passes, sol: expandSol(masks, size) });
     count++;
   }
 
