@@ -343,24 +343,25 @@ function toggleHlCol(j) { state.hlCol = state.hlCol === j ? -1 : j; state.hlRow 
 
 /* ---- INTERACTIONS ---- */
 function applyTool(i, j, toggle) {
-  if (state.flashing.has(`${i},${j}`)) return;
+  if (state.flashing.has(`${i},${j}`)) return false;
   const want = state.activeTool === 'fill' ? 1 : 2;
   const cur  = state.grid[i][j];
   const next = (toggle && cur === want) ? 0 : want;
-  commitCell(i, j, next);
+  return commitCell(i, j, next);
 }
 
+// Возвращает true, если ход оказался ошибкой (заливка по пустой по решению клетке).
 function commitCell(i, j, val) {
-  if (state.grid[i][j] === val) return;
+  if (state.grid[i][j] === val) return false;
   // Правильно закрашенную клетку (grid === 1 всегда верна) нельзя снять или перекрыть крестиком.
-  if (state.grid[i][j] === 1 && val !== 1) return;
+  if (state.grid[i][j] === 1 && val !== 1) return false;
   if (val === 1 && state.SOL[i][j] === 0) {
     state.mistakes++;
     document.getElementById('mistakesVal').textContent = state.mistakes;
     flashError(i, j);
     _clearHint();
     _saveProgress(state);
-    return;
+    return true;
   }
   _clearHint();
   state.grid[i][j] = val;
@@ -368,6 +369,7 @@ function commitCell(i, j, val) {
   refreshClueOpacity(i, j);
   if (!state.solved && allSolved()) complete();
   else _saveProgress(state);
+  return false;
 }
 
 function _clearHint() {
@@ -581,7 +583,9 @@ function onDown(e, i, j) {
   if (e.button !== 0) return;
 
   state.dragging = true;
-  applyTool(i, j, true);
+  // Если первый клик — ошибка (клетка мигает и откатится в 0), драг не начинаем,
+  // иначе dragValue = 0 и протяжка затирала бы правильно закрашенные клетки (БАГ-2).
+  if (applyTool(i, j, true)) { state.dragging = false; return; }
   state.dragValue = state.grid[i][j];
 }
 
