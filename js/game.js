@@ -1,5 +1,6 @@
 import { PUZZLES, DIFF_LABEL, DIFF_CLASS, ACCENT, LINE, SEP, TINT_HL } from './puzzles.js';
-import { saveHistoryEntry, saveProgress as _saveProgress, clearProgress, getProgress } from './storage.js';
+import { saveHistoryEntry, saveProgress as _saveProgress, clearProgress, getProgress, loadHistory, loadAllProgress } from './storage.js';
+import { loadDataset } from './dataset.js';
 
 /* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
 const APP_W = 460;
@@ -530,8 +531,41 @@ export function resetGame() {
   computeSize(); render();
 }
 
-export function nextPuzzle() {
-  const idx  = PUZZLES.findIndex(p => p.id === state.currentPuzzleId);
-  const next = PUZZLES[(idx + 1) % PUZZLES.length];
-  loadPuzzle(next.id);
+/* Порядок прогрессии каталога: размер по возрастанию, внутри размера —
+   от лёгких к сложным (по метрике passes из датасета). */
+const DIFF_ORDER = { easy: 0, medium: 1, hard: 2 };
+
+function progressionOrder(a, b) {
+  if (a.size !== b.size) return a.size - b.size;
+  const d = (DIFF_ORDER[a.difficulty] ?? 1) - (DIFF_ORDER[b.difficulty] ?? 1);
+  if (d) return d;
+  return (a.passes || 0) - (b.passes || 0);
+}
+
+export async function nextPuzzle() {
+  // Каталог мог быть ещё не подгружен (меню не открывали) — без него
+  // выбор шёл бы только по 7 встроенным пазлам.
+  await loadDataset();
+
+  const solvedIds  = new Set(loadHistory().map(e => e.puzzleId));
+  const inProgress = loadAllProgress();
+  const unsolved = PUZZLES
+    .filter(p => p.id !== state.currentPuzzleId && !solvedIds.has(p.id))
+    .sort(progressionOrder);
+
+  // Сначала нерешённые текущего размера, при исчерпании — следующий размер
+  // по возрастанию, затем оставшиеся мельче; внутри группы предпочитаем
+  // уже начатый пазл, чтобы игрок мог его дорешать.
+  const pickFrom = list => list.find(p => inProgress[p.id]) || list[0];
+  const pick =
+    pickFrom(unsolved.filter(p => p.size === state.N)) ||
+    pickFrom(unsolved.filter(p => p.size > state.N)) ||
+    pickFrom(unsolved);
+
+  if (pick) { loadPuzzle(pick.id); return; }
+
+  // Всё решено — идём по каталогу в порядке прогрессии по кругу.
+  const ordered = [...PUZZLES].sort(progressionOrder);
+  const idx = ordered.findIndex(p => p.id === state.currentPuzzleId);
+  loadPuzzle(ordered[(idx + 1) % ordered.length].id);
 }
