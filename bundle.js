@@ -352,6 +352,8 @@ function applyTool(i, j, toggle) {
 
 function commitCell(i, j, val) {
   if (state.grid[i][j] === val) return;
+  // Правильно закрашенную клетку (grid === 1 всегда верна) нельзя снять или перекрыть крестиком.
+  if (state.grid[i][j] === 1 && val !== 1) return;
   if (val === 1 && state.SOL[i][j] === 0) {
     state.mistakes++;
     document.getElementById('mistakesVal').textContent = state.mistakes;
@@ -538,7 +540,10 @@ function render() {
       el.addEventListener('pointerenter', () => onEnter(i, j));
       el.addEventListener('contextmenu', e => {
         e.preventDefault();
-        selectTool('cross'); applyTool(i, j, true);
+        // ПКМ уже обработан в onDown (крестик + драг) — не переключаем инструмент и не дублируем ход.
+        if (rightHandled) { rightHandled = false; return; }
+        // Тач-лонгпресс: ставим/снимаем крестик, активный инструмент не меняем.
+        commitCell(i, j, state.grid[i][j] === 2 ? 0 : 2);
       });
       gEl.appendChild(el);
       renderCell(i, j);
@@ -556,9 +561,25 @@ function render() {
 }
 
 /* ---- POINTER ---- */
+let rightHandled = false; // ПКМ обработана в onDown → contextmenu должен её пропустить
+
 function onDown(e, i, j) {
   e.preventDefault();
   if (state.solved || state.gesture) return;
+
+  // Правая кнопка мыши — крестик с поддержкой драга; активный инструмент не меняем.
+  if (e.button === 2) {
+    rightHandled = true;
+    const next = state.grid[i][j] === 2 ? 0 : 2;
+    state.dragging = true;
+    state.dragValue = next;
+    commitCell(i, j, next);
+    return;
+  }
+
+  // Только левая кнопка мыши и касания (pointerdown касания/пера имеют button === 0).
+  if (e.button !== 0) return;
+
   state.dragging = true;
   applyTool(i, j, true);
   state.dragValue = state.grid[i][j];
