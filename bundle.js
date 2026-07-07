@@ -161,10 +161,10 @@ function loadAllProgress() {
   try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { return {}; }
 }
 
-function saveProgress({ solved, currentPuzzleId, grid, mistakes, coins, seconds }) {
+function saveProgress({ solved, currentPuzzleId, grid, mistakes, seconds }) {
   if (solved) return;
   const all = loadAllProgress();
-  all[currentPuzzleId] = { grid, mistakes, coins, seconds, savedAt: Date.now() };
+  all[currentPuzzleId] = { grid, mistakes, seconds, savedAt: Date.now() };
   localStorage.setItem(PROGRESS_KEY, JSON.stringify(all));
 }
 
@@ -192,7 +192,6 @@ const state = {
   grid: [],
   cellEls: [],
   mistakes: 0,
-  coins: 12,
   seconds: 0,
   solved: false,
   hintCell: null,
@@ -596,9 +595,13 @@ function onEnter(i, j) {
 }
 
 /* ---- COMPLETION ---- */
+/* Пороги масштабируются по площади пазла: на большие сетки времени и права
+   на ошибку больше. 0 ошибок при разумном темпе — всегда 3 звезды. */
 function calcStars() {
-  if (state.mistakes === 0 && state.seconds < 180) return 3;
-  if (state.mistakes <= 2  && state.seconds < 600) return 2;
+  const parTime = 60 + state.N * state.N * 4;      // 5x5 ≈ 160с, 15x15 ≈ 960с
+  const allowedMistakes = Math.ceil(state.N / 5);  // 5→1, 10→2, 15→3
+  if (state.mistakes === 0 && state.seconds < parTime) return 3;
+  if (state.mistakes <= allowedMistakes && state.seconds < parTime * 3) return 2;
   return 1;
 }
 
@@ -607,7 +610,6 @@ function complete() {
   clearProgress(state.currentPuzzleId);
   const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
   const stars = calcStars();
-  const coinsEarned = Math.max(0, 60 - state.mistakes * 5);
 
   saveHistoryEntry({
     puzzleId: state.currentPuzzleId,
@@ -618,7 +620,6 @@ function complete() {
     time: state.seconds,
     mistakes: state.mistakes,
     stars,
-    coinsEarned,
     date: Date.now(),
   });
 
@@ -659,7 +660,6 @@ function complete() {
   }
   document.getElementById('finalTime').textContent     = fmt(state.seconds);
   document.getElementById('finalMistakes').textContent = state.mistakes;
-  document.getElementById('finalCoins').textContent    = '+' + coinsEarned;
   document.getElementById('completionOverlay').classList.add('active');
 }
 
@@ -675,11 +675,10 @@ function loadPuzzle(id) {
   if (saved) {
     state.grid     = saved.grid;
     state.mistakes = saved.mistakes;
-    state.coins    = saved.coins;
     state.seconds  = saved.seconds;
   } else {
     state.grid = mk();
-    state.mistakes = 0; state.coins = 12; state.seconds = 0;
+    state.mistakes = 0; state.seconds = 0;
   }
   state.solved = false; state.hlRow = -1; state.hlCol = -1; state.hintCell = null; state.flashing.clear();
   state.zoom = 1;
@@ -700,7 +699,7 @@ function resetGame() {
   const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
   if (!puz) return;
   state.SOL = puz.sol; state.N = puz.size;
-  state.grid = mk(); state.mistakes = 0; state.coins = 12; state.seconds = 0;
+  state.grid = mk(); state.mistakes = 0; state.seconds = 0;
   state.solved = false; state.hlRow = -1; state.hlCol = -1; state.hintCell = null; state.flashing.clear();
   document.getElementById('headerTitle').textContent = puz.name;
   const badge = document.getElementById('headerBadge');

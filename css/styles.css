@@ -13,7 +13,7 @@
   --muted: #8595a4;
   --tint-hl: rgba(0,100,224,0.18);
   --err: #e41e3f;
-  --coin: #ffd24a;
+  --inprogress: #ffd24a;
   --green: #1f7a3d;
   --green-bg: #e3f4e8;
   --menu-w: 320px;
@@ -416,7 +416,7 @@ body {
   background: var(--border);
 }
 .status-dot.done { background: var(--green); }
-.status-dot.inprogress { background: var(--coin); }
+.status-dot.inprogress { background: var(--inprogress); }
 
 /* ---- history tab ---- */
 .history-list {

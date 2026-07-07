@@ -16,10 +16,10 @@ export function loadAllProgress() {
   try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { return {}; }
 }
 
-export function saveProgress({ solved, currentPuzzleId, grid, mistakes, coins, seconds }) {
+export function saveProgress({ solved, currentPuzzleId, grid, mistakes, seconds }) {
   if (solved) return;
   const all = loadAllProgress();
-  all[currentPuzzleId] = { grid, mistakes, coins, seconds, savedAt: Date.now() };
+  all[currentPuzzleId] = { grid, mistakes, seconds, savedAt: Date.now() };
   localStorage.setItem(PROGRESS_KEY, JSON.stringify(all));
 }
 
