@@ -45,12 +45,6 @@ document.getElementById('btnHint').addEventListener('click', () => { if (!state.
 document.getElementById('btnSettings').addEventListener('click', () => {});
 document.getElementById('btnReplay').addEventListener('click', resetGame);
 document.getElementById('btnNext').addEventListener('click', nextPuzzle);
-document.getElementById('btnShare').addEventListener('click', () => {
-  const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
-  const txt = `Нонограмма «${puz.name}» ${state.N}×${state.N} — ${state.seconds ? Math.floor(state.seconds / 60) + 'м ' + (state.seconds % 60) + 'с' : '—'}, ошибки: ${state.mistakes}`;
-  if (navigator.share) navigator.share({ title: 'Нонограмма', text: txt });
-  else if (navigator.clipboard) navigator.clipboard.writeText(txt);
-});
 
 /* ---- POINTER UP / CANCEL ---- */
 window.addEventListener('pointerup',     () => { state.dragging = false; });
