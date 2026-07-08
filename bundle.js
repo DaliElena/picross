@@ -147,6 +147,23 @@ const HISTORY_KEY  = 'nonogram_history_v1';
 const PROGRESS_KEY = 'nonogram_progress_v1';
 const BESTS_KEY    = 'nonogram_bests_v1';
 const LAST_KEY     = 'nonogram_last_v1';
+const SETTINGS_KEY = 'nonogram_settings_v1';
+
+/* Настройки игры: { showPreviews } — показывать ли в каталоге картинку
+   решения нерешённых пазлов (для решённых превью показывается всегда). */
+const DEFAULT_SETTINGS = { showPreviews: true };
+
+function loadSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings(patch) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...loadSettings(), ...patch }));
+}
 
 /* Последний открытый пазл — чтобы после перезапуска продолжить с него,
    а не всегда стартовать с «Сердечка» (БАГ-17). */
@@ -877,6 +894,14 @@ function drawCanvasPreview(canvas) {
   }
 }
 
+/* Заглушка вместо превью: картинка решения скрыта настройкой showPreviews */
+function makeHiddenPreview() {
+  const el = document.createElement('div');
+  el.className = 'puzzle-preview puzzle-preview-hidden';
+  el.textContent = '?';
+  return el;
+}
+
 let previewObserver = null;
 function makeCanvasPreview(sol, size) {
   const dpr = window.devicePixelRatio || 1;
@@ -955,12 +980,15 @@ function makeSectionTitle(label) {
   return title;
 }
 
-function makePuzzleCard(p, bestMap, allProgress) {
+function makePuzzleCard(p, bestMap, allProgress, showPreviews) {
   const best = bestMap[p.id] || null;
   const card = document.createElement('button');
   card.className = 'puzzle-card' + (p.id === state.currentPuzzleId ? ' active-puzzle' : '');
 
-  const preview = makeCanvasPreview(p.sol, p.size);
+  // Решённый пазл — уже не спойлер, его картинку показываем всегда
+  const preview = (showPreviews || best)
+    ? makeCanvasPreview(p.sol, p.size)
+    : makeHiddenPreview();
 
   const info = document.createElement('div');
   info.className = 'puzzle-info';
@@ -1014,6 +1042,7 @@ function renderMenuPuzzles() {
   // Читаем localStorage один раз на весь список, а не по разу на карточку
   const bestMap = loadBests();
   const allProgress = loadAllProgress();
+  const showPreviews = loadSettings().showPreviews;
 
   // Пересоздаём наблюдатели: старые узлы уже удалены из DOM
   if (previewObserver) previewObserver.disconnect();
@@ -1050,7 +1079,7 @@ function renderMenuPuzzles() {
     const frag = document.createDocumentFragment();
     for (const end = Math.min(pos + CHUNK, queue.length); pos < end; pos++) {
       const item = queue[pos];
-      frag.appendChild(item.title ? makeSectionTitle(item.title) : makePuzzleCard(item.p, bestMap, allProgress));
+      frag.appendChild(item.title ? makeSectionTitle(item.title) : makePuzzleCard(item.p, bestMap, allProgress, showPreviews));
     }
     list.appendChild(frag);
   };
@@ -1339,7 +1368,30 @@ document.getElementById('toolToggle').addEventListener('click', () => {
 
 /* ---- BUTTONS ---- */
 document.getElementById('btnHint').addEventListener('click', () => { if (!state.solved) hint(); });
-document.getElementById('btnSettings').addEventListener('click', () => {});
+
+/* ---- SETTINGS ---- */
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const swPreviews = document.getElementById('swPreviews');
+
+function syncSettingsUI() {
+  const on = loadSettings().showPreviews;
+  swPreviews.classList.toggle('on', on);
+  swPreviews.setAttribute('aria-checked', String(on));
+}
+
+document.getElementById('btnSettings').addEventListener('click', () => {
+  syncSettingsUI();
+  settingsBackdrop.classList.add('open');
+});
+swPreviews.addEventListener('click', () => {
+  saveSettings({ showPreviews: !loadSettings().showPreviews });
+  syncSettingsUI();
+  // Каталог перерисовывается при каждом открытии меню, но если меню уже
+  // открыто под модалкой — обновляем список сразу
+  if (document.getElementById('menuPanel').classList.contains('open')) renderMenuPuzzles();
+});
+document.getElementById('settingsClose').addEventListener('click', () => settingsBackdrop.classList.remove('open'));
+settingsBackdrop.addEventListener('click', e => { if (e.target === settingsBackdrop) settingsBackdrop.classList.remove('open'); });
 document.getElementById('btnReplay').addEventListener('click', resetGame);
 document.getElementById('btnNext').addEventListener('click', nextPuzzle);
 

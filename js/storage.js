@@ -2,6 +2,23 @@ const HISTORY_KEY  = 'nonogram_history_v1';
 const PROGRESS_KEY = 'nonogram_progress_v1';
 const BESTS_KEY    = 'nonogram_bests_v1';
 const LAST_KEY     = 'nonogram_last_v1';
+const SETTINGS_KEY = 'nonogram_settings_v1';
+
+/* Настройки игры: { showPreviews } — показывать ли в каталоге картинку
+   решения нерешённых пазлов (для решённых превью показывается всегда). */
+const DEFAULT_SETTINGS = { showPreviews: true };
+
+export function loadSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export function saveSettings(patch) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...loadSettings(), ...patch }));
+}
 
 /* Последний открытый пазл — чтобы после перезапуска продолжить с него,
    а не всегда стартовать с «Сердечка» (БАГ-17). */

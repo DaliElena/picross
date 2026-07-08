@@ -1,5 +1,5 @@
 import { PUZZLES, DIFF_LABEL, ACCENT } from './puzzles.js';
-import { loadHistory, loadBests, loadAllProgress, deleteHistoryEntry, clearHistory, clearProgress } from './storage.js';
+import { loadHistory, loadBests, loadAllProgress, deleteHistoryEntry, clearHistory, clearProgress, loadSettings } from './storage.js';
 import { state, loadPuzzle, fmt } from './game.js';
 
 /* ---- CONFIRM MODAL ---- */
@@ -61,6 +61,14 @@ function drawCanvasPreview(canvas) {
   for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
     if (sol[i][j]) ctx.fillRect(Math.floor(j * cell), Math.floor(i * cell), Math.ceil(cell), Math.ceil(cell));
   }
+}
+
+/* Заглушка вместо превью: картинка решения скрыта настройкой showPreviews */
+function makeHiddenPreview() {
+  const el = document.createElement('div');
+  el.className = 'puzzle-preview puzzle-preview-hidden';
+  el.textContent = '?';
+  return el;
 }
 
 let previewObserver = null;
@@ -141,12 +149,15 @@ function makeSectionTitle(label) {
   return title;
 }
 
-function makePuzzleCard(p, bestMap, allProgress) {
+function makePuzzleCard(p, bestMap, allProgress, showPreviews) {
   const best = bestMap[p.id] || null;
   const card = document.createElement('button');
   card.className = 'puzzle-card' + (p.id === state.currentPuzzleId ? ' active-puzzle' : '');
 
-  const preview = makeCanvasPreview(p.sol, p.size);
+  // Решённый пазл — уже не спойлер, его картинку показываем всегда
+  const preview = (showPreviews || best)
+    ? makeCanvasPreview(p.sol, p.size)
+    : makeHiddenPreview();
 
   const info = document.createElement('div');
   info.className = 'puzzle-info';
@@ -200,6 +211,7 @@ export function renderMenuPuzzles() {
   // Читаем localStorage один раз на весь список, а не по разу на карточку
   const bestMap = loadBests();
   const allProgress = loadAllProgress();
+  const showPreviews = loadSettings().showPreviews;
 
   // Пересоздаём наблюдатели: старые узлы уже удалены из DOM
   if (previewObserver) previewObserver.disconnect();
@@ -236,7 +248,7 @@ export function renderMenuPuzzles() {
     const frag = document.createDocumentFragment();
     for (const end = Math.min(pos + CHUNK, queue.length); pos < end; pos++) {
       const item = queue[pos];
-      frag.appendChild(item.title ? makeSectionTitle(item.title) : makePuzzleCard(item.p, bestMap, allProgress));
+      frag.appendChild(item.title ? makeSectionTitle(item.title) : makePuzzleCard(item.p, bestMap, allProgress, showPreviews));
     }
     list.appendChild(frag);
   };
