@@ -763,6 +763,7 @@ function resetGame() {
   state.SOL = puz.sol; state.N = puz.size;
   state.grid = mk(); state.mistakes = 0; state.seconds = 0;
   state.solved = false; state.hlRow = -1; state.hlCol = -1; state.hintCell = null; state.flashing.clear();
+  state.zoom = 1;
   document.getElementById('headerTitle').textContent = puz.name;
   const badge = document.getElementById('headerBadge');
   badge.textContent = DIFF_LABEL[puz.difficulty];
