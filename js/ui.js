@@ -427,7 +427,7 @@ export function renderHistory() {
       e.stopPropagation();
       const ok = await showConfirm({
         title: 'Удалить запись?',
-        text: `Результат «${entry.name}» будет удалён из истории, лучший результат пересчитается по оставшимся записям.`,
+        text: `Результат «${entry.name}» будет удалён из истории.`,
         okLabel: 'Удалить',
         danger: true,
       });
