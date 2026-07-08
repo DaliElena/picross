@@ -17,8 +17,11 @@
 const fs   = require('fs');
 const path = require('path');
 
-const SRC  = path.join(__dirname, '..', 'Nonogram_dataset.json');
-const DEST = path.join(__dirname, '..', 'js', 'puzzles-dataset.js');
+const SRC   = path.join(__dirname, '..', 'Nonogram_dataset.json');
+const DEST  = path.join(__dirname, '..', 'js', 'puzzles-dataset.js');
+// Названия, подобранные вручную по картинке решения (БАГ-18);
+// пазлы без названия получают запасное «#N».
+const NAMES = JSON.parse(fs.readFileSync(path.join(__dirname, 'puzzle-names.json'), 'utf8'));
 
 function parseSolution(solutionStr) {
   const lines = solutionStr.trim().split('\n');
@@ -196,7 +199,7 @@ for (const [key, entry] of entries) {
   passHist[passes] = (passHist[passes] || 0) + 1;
   puzzles.push([
     'ds_' + key,             // id
-    '#' + key.split('_')[0], // name
+    NAMES[key] || '#' + key.split('_')[0], // name
     parsed.size,             // size
     getDifficulty(passes),   // difficulty
     parsed.masks,            // row bitmasks
@@ -213,6 +216,11 @@ console.log('Passes histogram:', JSON.stringify(passHist));
 const diffCount = { easy: 0, medium: 0, hard: 0 };
 for (const p of puzzles) diffCount[p[3]]++;
 console.log('Difficulty split:', JSON.stringify(diffCount));
+const named = puzzles.filter(p => !p[1].startsWith('#')).length;
+console.log(`Named puzzles: ${named} of ${puzzles.length}`);
+const keptKeys = new Set(puzzles.map(p => p[0].slice(3)));
+const unusedNames = Object.keys(NAMES).filter(k => !keptKeys.has(k));
+if (unusedNames.length) console.warn('Unused names (puzzle dropped or missing):', unusedNames.join(', '));
 
 console.log(`Writing ${puzzles.length} puzzles to`, DEST, '...');
 

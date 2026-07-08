@@ -3,7 +3,7 @@ export const PUZZLES = [
     id: 'heart',
     name: 'Сердечко',
     size: 10,
-    difficulty: 'medium',
+    difficulty: 'easy',
     sol: [
       [0,0,0,0,0,0,0,0,0,0],
       [0,1,1,0,0,0,0,1,1,0],
@@ -47,7 +47,7 @@ export const PUZZLES = [
     id: 'house10',
     name: 'Домик',
     size: 10,
-    difficulty: 'medium',
+    difficulty: 'easy',
     sol: [
       [0,0,0,0,1,1,0,0,0,0],
       [0,0,0,1,1,1,1,0,0,0],
@@ -65,7 +65,7 @@ export const PUZZLES = [
     id: 'fish10',
     name: 'Рыбка',
     size: 10,
-    difficulty: 'medium',
+    difficulty: 'easy',
     sol: [
       [0,0,0,0,0,0,0,0,1,0],
       [0,0,0,0,0,0,0,1,1,1],
@@ -83,7 +83,7 @@ export const PUZZLES = [
     id: 'tree15',
     name: 'Ёлочка',
     size: 15,
-    difficulty: 'hard',
+    difficulty: 'easy',
     sol: [
       [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,1,1,1,0,0,0,0,0,0],
@@ -106,7 +106,7 @@ export const PUZZLES = [
     id: 'diamond15',
     name: 'Ромб',
     size: 15,
-    difficulty: 'hard',
+    difficulty: 'medium',
     sol: [
       [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
       [0,0,0,0,0,0,1,1,1,0,0,0,0,0,0],
