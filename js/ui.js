@@ -1,6 +1,36 @@
 import { PUZZLES, DIFF_LABEL, ACCENT } from './puzzles.js';
-import { loadHistory, loadBests, loadAllProgress } from './storage.js';
+import { loadHistory, loadBests, loadAllProgress, deleteHistoryEntry, clearHistory, clearProgress } from './storage.js';
 import { state, loadPuzzle, fmt } from './game.js';
+
+/* ---- CONFIRM MODAL ---- */
+export function showConfirm({ title, text, okLabel = 'Да', danger = false }) {
+  const backdrop = document.getElementById('confirmBackdrop');
+  const okBtn    = document.getElementById('confirmOk');
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmText').textContent  = text;
+  okBtn.textContent = okLabel;
+  okBtn.classList.toggle('danger', danger);
+  backdrop.classList.add('open');
+  return new Promise(resolve => {
+    const done = ok => { backdrop.classList.remove('open'); resolve(ok); };
+    okBtn.onclick = () => done(true);
+    document.getElementById('confirmCancel').onclick = () => done(false);
+    backdrop.onclick = e => { if (e.target === backdrop) done(false); };
+  });
+}
+
+/* Подтверждение и перезапуск решённого пазла с чистого листа */
+async function confirmReplay(id, name) {
+  const ok = await showConfirm({
+    title: 'Начать заново?',
+    text: `«${name}» уже решена. Начать её заново?`,
+    okLabel: 'Заново',
+  });
+  if (!ok) return;
+  clearProgress(id);
+  loadPuzzle(id);
+  closeMenu();
+}
 
 /* ---- MINI PREVIEW ---- */
 export function buildPreview(sol, size, el, px) {
@@ -149,6 +179,8 @@ function makePuzzleCard(p, bestMap, allProgress) {
 
   card.append(preview, info, status);
   card.addEventListener('click', () => {
+    // Решённый пазл без начатого перепрохождения — спрашиваем про рестарт
+    if (best && !inProgress) { confirmReplay(p.id, p.name); return; }
     loadPuzzle(p.id);
     closeMenu();
   });
@@ -323,15 +355,32 @@ export function renderHistory() {
   }
 
   if (h.length) {
-    const sectionTitle = document.createElement('div');
-    sectionTitle.className = 'puzzle-section-title';
-    sectionTitle.textContent = 'Завершённые';
-    list.appendChild(sectionTitle);
+    const row = document.createElement('div');
+    row.className = 'history-section-row';
+    row.innerHTML = '<div class="puzzle-section-title">Завершённые</div>';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'history-clear-btn';
+    clearBtn.textContent = 'Очистить';
+    clearBtn.addEventListener('click', async () => {
+      const ok = await showConfirm({
+        title: 'Очистить историю?',
+        text: 'Вся история и лучшие результаты будут удалены. Звёзды в каталоге сбросятся.',
+        okLabel: 'Очистить',
+        danger: true,
+      });
+      if (!ok) return;
+      clearHistory();
+      renderHistory();
+      renderMenuPuzzles();
+    });
+    row.appendChild(clearBtn);
+    list.appendChild(row);
   }
 
   h.forEach(entry => {
     const item = document.createElement('div');
-    item.className = 'history-item';
+    item.className = 'history-item completed';
 
     const px = Math.floor(44 / entry.size);
     const date = new Date(entry.date);
@@ -356,10 +405,38 @@ export function renderHistory() {
         <div class="history-time">${fmt(entry.time)}</div>
         <div class="history-mistakes">${entry.mistakes} ош.</div>
       </div>
+      <button class="history-del" aria-label="Удалить запись" title="Удалить">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+        </svg>
+      </button>
     `;
 
     const previewEl = item.querySelector('.history-preview');
     buildPreview(entry.sol, entry.size, previewEl, px);
+
+    item.addEventListener('click', () => {
+      // Пазла может не быть в каталоге, пока датасет грузится
+      if (!PUZZLES.find(p => p.id === entry.puzzleId)) return;
+      confirmReplay(entry.puzzleId, entry.name);
+    });
+
+    item.querySelector('.history-del').addEventListener('click', async e => {
+      e.stopPropagation();
+      const ok = await showConfirm({
+        title: 'Удалить запись?',
+        text: `Результат «${entry.name}» будет удалён из истории, лучший результат пересчитается по оставшимся записям.`,
+        okLabel: 'Удалить',
+        danger: true,
+      });
+      if (!ok) return;
+      deleteHistoryEntry(entry);
+      renderHistory();
+      renderMenuPuzzles();
+    });
+
     list.appendChild(item);
   });
 }

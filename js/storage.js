@@ -41,6 +41,25 @@ export function saveBest(entry) {
   localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
 }
 
+/* Удаляет запись истории (по puzzleId + date) и пересчитывает лучший
+   результат пазла по оставшимся записям; без записей best удаляется. */
+export function deleteHistoryEntry(entry) {
+  const h = loadHistory().filter(e => !(e.puzzleId === entry.puzzleId && e.date === entry.date));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+
+  const bests = loadBests();
+  let best = null;
+  for (const e of h) if (e.puzzleId === entry.puzzleId && isBetter(e, best)) best = e;
+  if (best) bests[entry.puzzleId] = { stars: best.stars, time: best.time, date: best.date };
+  else delete bests[entry.puzzleId];
+  localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
+}
+
+export function clearHistory() {
+  localStorage.setItem(HISTORY_KEY, '[]');
+  localStorage.setItem(BESTS_KEY, '{}');
+}
+
 export function loadAllProgress() {
   try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { return {}; }
 }
