@@ -1,5 +1,5 @@
 import { PUZZLES, DIFF_LABEL, DIFF_CLASS, ACCENT, LINE, SEP, TINT_HL } from './puzzles.js';
-import { saveHistoryEntry, saveProgress as _saveProgress, clearProgress, getProgress, loadHistory, loadAllProgress } from './storage.js';
+import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress } from './storage.js';
 import { loadDataset } from './dataset.js';
 
 /* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
@@ -432,7 +432,7 @@ function complete() {
   const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
   const stars = calcStars();
 
-  saveHistoryEntry({
+  const entry = {
     puzzleId: state.currentPuzzleId,
     name: puz.name,
     size: state.N,
@@ -442,7 +442,9 @@ function complete() {
     mistakes: state.mistakes,
     stars,
     date: Date.now(),
-  });
+  };
+  saveHistoryEntry(entry);
+  saveBest(entry);
 
   if (_onPuzzleListUpdate) _onPuzzleListUpdate();
 
@@ -547,7 +549,9 @@ export async function nextPuzzle() {
   // выбор шёл бы только по 7 встроенным пазлам.
   await loadDataset();
 
-  const solvedIds  = new Set(loadHistory().map(e => e.puzzleId));
+  // Отметки «решено» берём из bests: история обрезается до 100 записей
+  // и старые победы из неё выпадают.
+  const solvedIds  = new Set(Object.keys(loadBests()));
   const inProgress = loadAllProgress();
   const unsolved = PUZZLES
     .filter(p => p.id !== state.currentPuzzleId && !solvedIds.has(p.id))

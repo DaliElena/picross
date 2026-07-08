@@ -1,5 +1,6 @@
 const HISTORY_KEY  = 'nonogram_history_v1';
 const PROGRESS_KEY = 'nonogram_progress_v1';
+const BESTS_KEY    = 'nonogram_bests_v1';
 
 export function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
@@ -10,6 +11,34 @@ export function saveHistoryEntry(entry) {
   h.unshift(entry);
   if (h.length > 100) h.length = 100;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+}
+
+function isBetter(entry, cur) {
+  return !cur || entry.stars > cur.stars || (entry.stars === cur.stars && entry.time < cur.time);
+}
+
+/* Лучшие результаты по каждому пазлу: { [puzzleId]: { stars, time, date } }.
+   История — лента последних 100 игр, а bests не обрезаются, поэтому
+   звёзды в каталоге не пропадают после сотни партий. */
+export function loadBests() {
+  try {
+    const raw = localStorage.getItem(BESTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* повреждённый ключ — пересоберём из истории */ }
+  // Миграция: у старых сохранений bests ещё нет — собираем из истории
+  const bests = {};
+  for (const e of loadHistory()) {
+    if (isBetter(e, bests[e.puzzleId])) bests[e.puzzleId] = { stars: e.stars, time: e.time, date: e.date };
+  }
+  localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
+  return bests;
+}
+
+export function saveBest(entry) {
+  const bests = loadBests();
+  if (!isBetter(entry, bests[entry.puzzleId])) return;
+  bests[entry.puzzleId] = { stars: entry.stars, time: entry.time, date: entry.date };
+  localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
 }
 
 export function loadAllProgress() {

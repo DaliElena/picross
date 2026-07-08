@@ -1,5 +1,5 @@
 import { PUZZLES, DIFF_LABEL, ACCENT } from './puzzles.js';
-import { loadHistory, loadAllProgress } from './storage.js';
+import { loadHistory, loadBests, loadAllProgress } from './storage.js';
 import { state, loadPuzzle, fmt } from './game.js';
 
 /* ---- MINI PREVIEW ---- */
@@ -103,16 +103,6 @@ function buildFilters() {
   sizes.forEach(s => addChip(s, `${s}×${s}`, counts[s]));
 }
 
-/* Строит карту лучших результатов по всей истории за один проход */
-function buildBestMap() {
-  const map = {};
-  for (const e of loadHistory()) {
-    const cur = map[e.puzzleId];
-    if (!cur || e.stars > cur.stars || (e.stars === cur.stars && e.time < cur.time)) map[e.puzzleId] = e;
-  }
-  return map;
-}
-
 /* ---- PUZZLES TAB ---- */
 function makeSectionTitle(label) {
   const title = document.createElement('div');
@@ -176,7 +166,7 @@ export function renderMenuPuzzles() {
   list.innerHTML = '';
 
   // Читаем localStorage один раз на весь список, а не по разу на карточку
-  const bestMap = buildBestMap();
+  const bestMap = loadBests();
   const allProgress = loadAllProgress();
 
   // Пересоздаём наблюдатели: старые узлы уже удалены из DOM

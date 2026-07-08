@@ -145,6 +145,7 @@ window.DATASET_PUZZLES = [["ds_1076_20x20","#1076",20,"medium",[32760,65532,2539
 // ===== storage.js =====
 const HISTORY_KEY  = 'nonogram_history_v1';
 const PROGRESS_KEY = 'nonogram_progress_v1';
+const BESTS_KEY    = 'nonogram_bests_v1';
 
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
@@ -155,6 +156,34 @@ function saveHistoryEntry(entry) {
   h.unshift(entry);
   if (h.length > 100) h.length = 100;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+}
+
+function isBetter(entry, cur) {
+  return !cur || entry.stars > cur.stars || (entry.stars === cur.stars && entry.time < cur.time);
+}
+
+/* Лучшие результаты по каждому пазлу: { [puzzleId]: { stars, time, date } }.
+   История — лента последних 100 игр, а bests не обрезаются, поэтому
+   звёзды в каталоге не пропадают после сотни партий. */
+function loadBests() {
+  try {
+    const raw = localStorage.getItem(BESTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* повреждённый ключ — пересоберём из истории */ }
+  // Миграция: у старых сохранений bests ещё нет — собираем из истории
+  const bests = {};
+  for (const e of loadHistory()) {
+    if (isBetter(e, bests[e.puzzleId])) bests[e.puzzleId] = { stars: e.stars, time: e.time, date: e.date };
+  }
+  localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
+  return bests;
+}
+
+function saveBest(entry) {
+  const bests = loadBests();
+  if (!isBetter(entry, bests[entry.puzzleId])) return;
+  bests[entry.puzzleId] = { stars: entry.stars, time: entry.time, date: entry.date };
+  localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
 }
 
 function loadAllProgress() {
@@ -611,7 +640,7 @@ function complete() {
   const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
   const stars = calcStars();
 
-  saveHistoryEntry({
+  const entry = {
     puzzleId: state.currentPuzzleId,
     name: puz.name,
     size: state.N,
@@ -621,7 +650,9 @@ function complete() {
     mistakes: state.mistakes,
     stars,
     date: Date.now(),
-  });
+  };
+  saveHistoryEntry(entry);
+  saveBest(entry);
 
   if (_onPuzzleListUpdate) _onPuzzleListUpdate();
 
@@ -726,7 +757,9 @@ async function nextPuzzle() {
   // выбор шёл бы только по 7 встроенным пазлам.
   await loadDataset();
 
-  const solvedIds  = new Set(loadHistory().map(e => e.puzzleId));
+  // Отметки «решено» берём из bests: история обрезается до 100 записей
+  // и старые победы из неё выпадают.
+  const solvedIds  = new Set(Object.keys(loadBests()));
   const inProgress = loadAllProgress();
   const unsolved = PUZZLES
     .filter(p => p.id !== state.currentPuzzleId && !solvedIds.has(p.id))
@@ -852,16 +885,6 @@ function buildFilters() {
   sizes.forEach(s => addChip(s, `${s}×${s}`, counts[s]));
 }
 
-/* Строит карту лучших результатов по всей истории за один проход */
-function buildBestMap() {
-  const map = {};
-  for (const e of loadHistory()) {
-    const cur = map[e.puzzleId];
-    if (!cur || e.stars > cur.stars || (e.stars === cur.stars && e.time < cur.time)) map[e.puzzleId] = e;
-  }
-  return map;
-}
-
 /* ---- PUZZLES TAB ---- */
 function makeSectionTitle(label) {
   const title = document.createElement('div');
@@ -925,7 +948,7 @@ function renderMenuPuzzles() {
   list.innerHTML = '';
 
   // Читаем localStorage один раз на весь список, а не по разу на карточку
-  const bestMap = buildBestMap();
+  const bestMap = loadBests();
   const allProgress = loadAllProgress();
 
   // Пересоздаём наблюдатели: старые узлы уже удалены из DOM
