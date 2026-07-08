@@ -146,6 +146,17 @@ window.DATASET_PUZZLES = [["ds_1076_20x20","#1076",20,"medium",[32760,65532,2539
 const HISTORY_KEY  = 'nonogram_history_v1';
 const PROGRESS_KEY = 'nonogram_progress_v1';
 const BESTS_KEY    = 'nonogram_bests_v1';
+const LAST_KEY     = 'nonogram_last_v1';
+
+/* Последний открытый пазл — чтобы после перезапуска продолжить с него,
+   а не всегда стартовать с «Сердечка» (БАГ-17). */
+function saveLastPuzzle(id) {
+  localStorage.setItem(LAST_KEY, id);
+}
+
+function getLastPuzzle() {
+  return localStorage.getItem(LAST_KEY);
+}
 
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
@@ -717,6 +728,7 @@ function complete() {
 function loadPuzzle(id) {
   const puz = PUZZLES.find(p => p.id === id);
   if (!puz) return;
+  saveLastPuzzle(id);
   state.currentPuzzleId = id;
   state.SOL = puz.sol;
   state.N   = puz.size;
@@ -1228,7 +1240,7 @@ function renderHistory() {
       e.stopPropagation();
       const ok = await showConfirm({
         title: 'Удалить запись?',
-        text: `Результат «${entry.name}» будет удалён из истории, лучший результат пересчитается по оставшимся записям.`,
+        text: `Результат «${entry.name}» будет удалён из истории.`,
         okLabel: 'Удалить',
         danger: true,
       });
@@ -1465,7 +1477,14 @@ window.addEventListener('resize', () => {
 });
 
 /* ---- INIT ---- */
-loadPuzzle('heart');
+/* Восстанавливаем последний открытый пазл (БАГ-17). Если он из датасета,
+   встроенных 7 пазлов не хватит — сначала подгружаем каталог. Если пазл
+   так и не нашёлся (датасет недоступен), стартуем с «Сердечка». */
+(async () => {
+  const last = getLastPuzzle();
+  if (last && !PUZZLES.some(p => p.id === last)) await loadDataset();
+  loadPuzzle(last && PUZZLES.some(p => p.id === last) ? last : 'heart');
+})();
 
 /* ---- SERVICE WORKER ---- */
 if ('serviceWorker' in navigator) {

@@ -2,6 +2,7 @@ import { loadPuzzle, computeSize, render, selectTool, hint, resetGame, nextPuzzl
 import { openMenu, closeMenu, renderMenuPuzzles, renderHistory } from './ui.js';
 import { PUZZLES } from './puzzles.js';
 import { loadDataset } from './dataset.js';
+import { getLastPuzzle } from './storage.js';
 
 /* ---- PUZZLE LIST UPDATE CALLBACK ---- */
 setOnPuzzleListUpdate(() => {
@@ -180,7 +181,14 @@ window.addEventListener('resize', () => {
 });
 
 /* ---- INIT ---- */
-loadPuzzle('heart');
+/* Восстанавливаем последний открытый пазл (БАГ-17). Если он из датасета,
+   встроенных 7 пазлов не хватит — сначала подгружаем каталог. Если пазл
+   так и не нашёлся (датасет недоступен), стартуем с «Сердечка». */
+(async () => {
+  const last = getLastPuzzle();
+  if (last && !PUZZLES.some(p => p.id === last)) await loadDataset();
+  loadPuzzle(last && PUZZLES.some(p => p.id === last) ? last : 'heart');
+})();
 
 /* ---- SERVICE WORKER ---- */
 if ('serviceWorker' in navigator) {

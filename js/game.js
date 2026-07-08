@@ -1,5 +1,5 @@
 import { PUZZLES, DIFF_LABEL, DIFF_CLASS, ACCENT, LINE, SEP, TINT_HL } from './puzzles.js';
-import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress } from './storage.js';
+import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress, saveLastPuzzle } from './storage.js';
 import { loadDataset } from './dataset.js';
 
 /* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
@@ -490,6 +490,7 @@ function complete() {
 export function loadPuzzle(id) {
   const puz = PUZZLES.find(p => p.id === id);
   if (!puz) return;
+  saveLastPuzzle(id);
   state.currentPuzzleId = id;
   state.SOL = puz.sol;
   state.N   = puz.size;

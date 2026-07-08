@@ -1,6 +1,17 @@
 const HISTORY_KEY  = 'nonogram_history_v1';
 const PROGRESS_KEY = 'nonogram_progress_v1';
 const BESTS_KEY    = 'nonogram_bests_v1';
+const LAST_KEY     = 'nonogram_last_v1';
+
+/* Последний открытый пазл — чтобы после перезапуска продолжить с него,
+   а не всегда стартовать с «Сердечка» (БАГ-17). */
+export function saveLastPuzzle(id) {
+  localStorage.setItem(LAST_KEY, id);
+}
+
+export function getLastPuzzle() {
+  return localStorage.getItem(LAST_KEY);
+}
 
 export function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
