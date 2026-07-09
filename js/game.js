@@ -1,5 +1,5 @@
 import { PUZZLES, DIFF_LABEL, DIFF_CLASS, ACCENT, LINE, SEP, TINT_HL } from './puzzles.js';
-import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress, saveLastPuzzle } from './storage.js';
+import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress, saveLastPuzzle, loadSettings } from './storage.js';
 import { loadDataset } from './dataset.js';
 
 /* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
@@ -187,9 +187,67 @@ export function commitCell(i, j, val) {
   state.grid[i][j] = val;
   renderCell(i, j);
   refreshClueOpacity(i, j);
+  if (val === 1) autoCrossLines(i, j);
   if (!state.solved && allSolved()) complete();
   else _saveProgress(state);
   return false;
+}
+
+/* ---- AUTO-CROSS ----
+   Когда строка/столбец сошлись, пустые клетки линии закрываются крестиками
+   автоматически (опция autoCross). Вызывается только после заливки (val === 1):
+   крестики и стирание крестиков на rowSolved/colSolved не влияют. */
+// cells: массив [i, j, pos], где pos — позиция клетки вдоль линии.
+// focus — позиция клетки-источника (только что закрашенной): от неё пускаем
+// волну pop-анимации. Если анимировать не нужно (animate=false) или источника
+// нет (focus=null) — крестики появляются без каскада.
+function crossLineRest(cells, focus, animate) {
+  let changed = false;
+  let order = 0;
+  for (const [i, j, pos] of cells) {
+    // Мигающую ошибку не трогаем: её таймер вернёт клетку в 0 и перерисует.
+    if (state.grid[i][j] !== 0 || state.flashing.has(`${i},${j}`)) continue;
+    state.grid[i][j] = 2;
+    renderCell(i, j);
+    if (animate) {
+      const svg = state.cellEls[i][j]?.querySelector('svg');
+      if (svg) {
+        const dist = focus == null ? order : Math.abs(pos - focus);
+        svg.classList.add('auto-cross');
+        svg.style.animationDelay = Math.min(dist * 0.03, 0.24) + 's';
+      }
+    }
+    order++;
+    changed = true;
+  }
+  return changed;
+}
+
+function rowCells(i) { return Array.from({ length: state.N }, (_, jj) => [i, jj, jj]); }
+function colCells(j) { return Array.from({ length: state.N }, (_, ii) => [ii, j, ii]); }
+
+function autoCrossLines(i, j) {
+  if (!loadSettings().autoCross) return;
+  if (rowSolved(i)) crossLineRest(rowCells(i), j, true);
+  if (colSolved(j)) crossLineRest(colCells(j), i, true);
+}
+
+/* Проставить крестики во всех уже сошедшихся линиях: при включении опции
+   посреди партии (save=true) и при загрузке пазла — нулевые строки/столбцы
+   и линии из старых сохранений закрещиваются сразу. При загрузке прогресс
+   не сохраняем: свежеоткрытый пазл не должен помечаться «начатым», а
+   крестики детерминированно проставятся снова при следующей загрузке. */
+export function applyAutoCrossAll(save = true) {
+  if (state.solved || !loadSettings().autoCross) return;
+  // Анимируем только включение опции посреди партии (save=true); при загрузке
+  // пазла (save=false) крестики появляются сразу, без волны на пол-экрана.
+  const animate = save;
+  let changed = false;
+  for (let i = 0; i < state.N; i++)
+    if (rowSolved(i) && crossLineRest(rowCells(i), null, animate)) changed = true;
+  for (let j = 0; j < state.N; j++)
+    if (colSolved(j) && crossLineRest(colCells(j), null, animate)) changed = true;
+  if (save && changed) _saveProgress(state);
 }
 
 function _clearHint() {
@@ -515,6 +573,7 @@ export function loadPuzzle(id) {
     `${state.N} × ${state.N} · ошибок: <span id="mistakesVal">0</span>`;
   document.getElementById('completionOverlay').classList.remove('active');
   computeSize(); render();
+  applyAutoCrossAll(false);
 }
 
 export function resetGame() {
@@ -533,6 +592,7 @@ export function resetGame() {
   document.getElementById('headerMeta').innerHTML =
     `${state.N} × ${state.N} · ошибок: <span id="mistakesVal">0</span>`;
   computeSize(); render();
+  applyAutoCrossAll(false);
 }
 
 /* Порядок прогрессии каталога: размер по возрастанию, внутри размера —

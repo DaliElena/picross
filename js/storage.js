@@ -4,9 +4,12 @@ const BESTS_KEY    = 'nonogram_bests_v1';
 const LAST_KEY     = 'nonogram_last_v1';
 const SETTINGS_KEY = 'nonogram_settings_v1';
 
-/* Настройки игры: { showPreviews } — показывать ли в каталоге картинку
-   решения нерешённых пазлов (для решённых превью показывается всегда). */
-const DEFAULT_SETTINGS = { showPreviews: true };
+/* Настройки игры:
+   showPreviews — показывать ли в каталоге картинку решения нерешённых
+     пазлов (для решённых превью показывается всегда);
+   autoCross — автоматически закрывать крестиками пустые клетки строки/
+     столбца, когда линия сошлась (стандарт жанра: Picross S и др.). */
+const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true };
 
 export function loadSettings() {
   try {

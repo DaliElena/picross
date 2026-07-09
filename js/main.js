@@ -1,4 +1,4 @@
-import { loadPuzzle, computeSize, render, selectTool, hint, resetGame, nextPuzzle, state, setOnPuzzleListUpdate, setZoom, ZOOM_MIN, ZOOM_MAX } from './game.js';
+import { loadPuzzle, computeSize, render, selectTool, hint, resetGame, nextPuzzle, state, setOnPuzzleListUpdate, setZoom, ZOOM_MIN, ZOOM_MAX, applyAutoCrossAll } from './game.js';
 import { openMenu, closeMenu, renderMenuPuzzles, renderHistory } from './ui.js';
 import { PUZZLES } from './puzzles.js';
 import { loadDataset } from './dataset.js';
@@ -46,11 +46,14 @@ document.getElementById('btnHint').addEventListener('click', () => { if (!state.
 /* ---- SETTINGS ---- */
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const swPreviews = document.getElementById('swPreviews');
+const swAutoCross = document.getElementById('swAutoCross');
 
 function syncSettingsUI() {
-  const on = loadSettings().showPreviews;
-  swPreviews.classList.toggle('on', on);
-  swPreviews.setAttribute('aria-checked', String(on));
+  const s = loadSettings();
+  swPreviews.classList.toggle('on', s.showPreviews);
+  swPreviews.setAttribute('aria-checked', String(s.showPreviews));
+  swAutoCross.classList.toggle('on', s.autoCross);
+  swAutoCross.setAttribute('aria-checked', String(s.autoCross));
 }
 
 document.getElementById('btnSettings').addEventListener('click', () => {
@@ -63,6 +66,13 @@ swPreviews.addEventListener('click', () => {
   // Каталог перерисовывается при каждом открытии меню, но если меню уже
   // открыто под модалкой — обновляем список сразу
   if (document.getElementById('menuPanel').classList.contains('open')) renderMenuPuzzles();
+});
+swAutoCross.addEventListener('click', () => {
+  const on = !loadSettings().autoCross;
+  saveSettings({ autoCross: on });
+  syncSettingsUI();
+  // При включении посреди партии сразу закрываем уже сошедшиеся линии.
+  if (on) applyAutoCrossAll();
 });
 document.getElementById('settingsClose').addEventListener('click', () => settingsBackdrop.classList.remove('open'));
 settingsBackdrop.addEventListener('click', e => { if (e.target === settingsBackdrop) settingsBackdrop.classList.remove('open'); });
