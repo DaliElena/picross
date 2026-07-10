@@ -32,13 +32,20 @@ async function confirmReplay(id, name) {
   closeMenu();
 }
 
+/* Текущее значение CSS-переменной темы (для canvas, которому нужен реальный
+   цвет, а не var()). Читаем на момент отрисовки — при смене темы каталог
+   перерисовывается заново и превью берут актуальные цвета. */
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 /* ---- MINI PREVIEW ---- */
 export function buildPreview(sol, size, el, px) {
   el.style.gridTemplateColumns = `repeat(${size}, ${px}px)`;
   el.innerHTML = '';
   for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
     const d = document.createElement('div');
-    d.style.cssText = `width:${px}px;height:${px}px;background:${sol[i][j] ? ACCENT : '#eef2f6'}`;
+    d.style.cssText = `width:${px}px;height:${px}px;background:${sol[i][j] ? 'var(--accent)' : 'var(--cell-empty)'}`;
     el.appendChild(d);
   }
 }
@@ -54,9 +61,9 @@ function drawCanvasPreview(canvas) {
   const dpr = canvas._dpr;
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#eef2f6';
+  ctx.fillStyle = cssVar('--cell-empty') || '#eef2f6';
   ctx.fillRect(0, 0, PREVIEW_BOX, PREVIEW_BOX);
-  ctx.fillStyle = ACCENT;
+  ctx.fillStyle = cssVar('--accent') || ACCENT;
   const cell = PREVIEW_BOX / size;
   for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
     if (sol[i][j]) ctx.fillRect(Math.floor(j * cell), Math.floor(i * cell), Math.ceil(cell), Math.ceil(cell));
@@ -340,7 +347,7 @@ export function renderHistory() {
       for (let i = 0; i < puz.size; i++) for (let j = 0; j < puz.size; j++) {
         const d = document.createElement('div');
         const val = prog.grid[i][j];
-        d.style.cssText = `width:${px}px;height:${px}px;background:${val === 1 ? ACCENT : '#eef2f6'}`;
+        d.style.cssText = `width:${px}px;height:${px}px;background:${val === 1 ? 'var(--accent)' : 'var(--cell-empty)'}`;
         previewEl.appendChild(d);
       }
 

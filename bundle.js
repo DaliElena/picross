@@ -158,8 +158,9 @@ const SETTINGS_KEY = 'nonogram_settings_v1';
    autoCross — автоматически закрывать крестиками пустые клетки строки/
      столбца, когда линия сошлась (стандарт жанра: Picross S и др.);
    sound — звуковые сигналы при ошибке, победе и автокрестиках;
-   vibration — вибро-отклик на те же события (где поддерживается). */
-const DEFAULT_SETTINGS = { showPreviews: true, errorCheck: true, autoCross: true, sound: true, vibration: true };
+   vibration — вибро-отклик на те же события (где поддерживается);
+   theme — оформление: 'auto' (по системе), 'light' или 'dark'. */
+const DEFAULT_SETTINGS = { showPreviews: true, errorCheck: true, autoCross: true, sound: true, vibration: true, theme: 'auto' };
 
 function loadSettings() {
   try {
@@ -415,8 +416,8 @@ function isSep(idx) { return idx % 5 === 0; }
 
 function borderCSS(topSep, leftSep) {
   return [
-    topSep  ? `1.5px solid ${SEP}` : `0.5px solid ${LINE}`,
-    leftSep ? `1.5px solid ${SEP}` : `0.5px solid ${LINE}`,
+    topSep  ? '1.5px solid var(--sep)' : '0.5px solid var(--line)',
+    leftSep ? '1.5px solid var(--sep)' : '0.5px solid var(--line)',
   ];
 }
 
@@ -428,8 +429,8 @@ function renderCell(i, j) {
   const inHl    = state.hlRow === i || state.hlCol === j;
   const isHint  = state.hintCell && state.hintCell.i === i && state.hintCell.j === j;
   let bg = 'transparent';
-  if (st === 1)    bg = ACCENT;
-  else if (inHl)   bg = TINT_HL;
+  if (st === 1)    bg = 'var(--accent)';
+  else if (inHl)   bg = 'var(--tint-hl)';
 
   const [bt, bl] = borderCSS(isSep(i), isSep(j));
   el.style.borderTop  = bt;
@@ -439,9 +440,9 @@ function renderCell(i, j) {
 
   if (st === 2) {
     const sz = Math.round(state.CS * 0.42);
-    el.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 18 18" fill="none">
-      <line x1="3" y1="3" x2="15" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
-      <line x1="15" y1="3" x2="3" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
+    el.innerHTML = `<svg class="cross-mark" width="${sz}" height="${sz}" viewBox="0 0 18 18" fill="none">
+      <line x1="3" y1="3" x2="15" y2="15" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="15" y1="3" x2="3" y2="15" stroke-width="2.5" stroke-linecap="round"/>
     </svg>`;
   } else {
     el.innerHTML = '';
@@ -463,7 +464,7 @@ function renderClues() {
     const [, bl] = borderCSS(false, isSep(j));
     const d = document.createElement('div');
     d.className = 'col-clue';
-    d.style.cssText = `width:${state.CS}px;min-height:${state.CH}px;font-size:${state.FSIZE}px;border-left:${bl};background:${hl ? TINT_HL : 'transparent'};opacity:${dim ? 0.3 : 1};color:#1c1e21`;
+    d.style.cssText = `width:${state.CS}px;min-height:${state.CH}px;font-size:${state.FSIZE}px;border-left:${bl};background:${hl ? 'var(--tint-hl)' : 'transparent'};opacity:${dim ? 0.3 : 1};color:var(--text2)`;
     d.innerHTML = nums.map(n => `<span style="line-height:1.1">${n}</span>`).join('');
     d.addEventListener('click', () => toggleHlCol(j));
     ccEl.appendChild(d);
@@ -478,7 +479,7 @@ function renderClues() {
     const [bt] = borderCSS(isSep(i), false);
     const d = document.createElement('div');
     d.className = 'row-clue';
-    d.style.cssText = `width:${state.RW}px;height:${state.CS}px;font-size:${state.FSIZE}px;border-top:${bt};background:${hl ? TINT_HL : 'transparent'};opacity:${dim ? 0.3 : 1}`;
+    d.style.cssText = `width:${state.RW}px;height:${state.CS}px;font-size:${state.FSIZE}px;border-top:${bt};background:${hl ? 'var(--tint-hl)' : 'transparent'};opacity:${dim ? 0.3 : 1}`;
     d.innerHTML = nums.map(n => `<span>${n}</span>`).join('');
     d.addEventListener('click', () => toggleHlRow(i));
     rcEl.appendChild(d);
@@ -866,7 +867,7 @@ function complete() {
   px.style.gridTemplateColumns = `repeat(${state.N}, ${pxSize}px)`;
   for (let i = 0; i < state.N; i++) for (let j = 0; j < state.N; j++) {
     const d = document.createElement('div');
-    d.style.cssText = `width:${pxSize}px;height:${pxSize}px;box-sizing:border-box;background:${state.SOL[i][j] ? ACCENT : '#eef2f6'};border-right:0.5px solid #fff;border-bottom:0.5px solid #fff`;
+    d.style.cssText = `width:${pxSize}px;height:${pxSize}px;box-sizing:border-box;background:${state.SOL[i][j] ? 'var(--accent)' : 'var(--cell-empty)'};border-right:0.5px solid var(--pixel-gap);border-bottom:0.5px solid var(--pixel-gap)`;
     px.appendChild(d);
   }
 
@@ -1040,13 +1041,20 @@ async function confirmReplay(id, name) {
   closeMenu();
 }
 
+/* Текущее значение CSS-переменной темы (для canvas, которому нужен реальный
+   цвет, а не var()). Читаем на момент отрисовки — при смене темы каталог
+   перерисовывается заново и превью берут актуальные цвета. */
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 /* ---- MINI PREVIEW ---- */
 function buildPreview(sol, size, el, px) {
   el.style.gridTemplateColumns = `repeat(${size}, ${px}px)`;
   el.innerHTML = '';
   for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
     const d = document.createElement('div');
-    d.style.cssText = `width:${px}px;height:${px}px;background:${sol[i][j] ? ACCENT : '#eef2f6'}`;
+    d.style.cssText = `width:${px}px;height:${px}px;background:${sol[i][j] ? 'var(--accent)' : 'var(--cell-empty)'}`;
     el.appendChild(d);
   }
 }
@@ -1062,9 +1070,9 @@ function drawCanvasPreview(canvas) {
   const dpr = canvas._dpr;
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#eef2f6';
+  ctx.fillStyle = cssVar('--cell-empty') || '#eef2f6';
   ctx.fillRect(0, 0, PREVIEW_BOX, PREVIEW_BOX);
-  ctx.fillStyle = ACCENT;
+  ctx.fillStyle = cssVar('--accent') || ACCENT;
   const cell = PREVIEW_BOX / size;
   for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
     if (sol[i][j]) ctx.fillRect(Math.floor(j * cell), Math.floor(i * cell), Math.ceil(cell), Math.ceil(cell));
@@ -1348,7 +1356,7 @@ function renderHistory() {
       for (let i = 0; i < puz.size; i++) for (let j = 0; j < puz.size; j++) {
         const d = document.createElement('div');
         const val = prog.grid[i][j];
-        d.style.cssText = `width:${px}px;height:${px}px;background:${val === 1 ? ACCENT : '#eef2f6'}`;
+        d.style.cssText = `width:${px}px;height:${px}px;background:${val === 1 ? 'var(--accent)' : 'var(--cell-empty)'}`;
         previewEl.appendChild(d);
       }
 
@@ -1546,6 +1554,34 @@ document.getElementById('toolToggle').addEventListener('click', () => {
 /* ---- BUTTONS ---- */
 document.getElementById('btnHint').addEventListener('click', () => { if (!state.solved) hint(); });
 
+/* ---- THEME ----
+   Настройка theme: 'auto' | 'light' | 'dark'. Инлайновый скрипт в <head> уже
+   проставил data-theme до первой отрисовки; здесь держим его в актуальном
+   состоянии при переключении и — в режиме «Системная» — при смене темы ОС. */
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+const darkMedia = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+
+function resolveTheme(pref) {
+  if (pref === 'light' || pref === 'dark') return pref;
+  return darkMedia && darkMedia.matches ? 'dark' : 'light';
+}
+function applyTheme() {
+  const resolved = resolveTheme(loadSettings().theme);
+  document.documentElement.setAttribute('data-theme', resolved);
+  if (themeMeta) themeMeta.setAttribute('content', resolved === 'dark' ? '#14181f' : '#0064e0');
+  // Открытый каталог перерисовываем: canvas-превью берут цвет темы при отрисовке.
+  if (document.getElementById('menuPanel').classList.contains('open')) renderMenuPuzzles();
+}
+if (darkMedia) {
+  const onSystemChange = () => {
+    const pref = loadSettings().theme;
+    if (pref !== 'light' && pref !== 'dark') applyTheme();
+  };
+  if (darkMedia.addEventListener) darkMedia.addEventListener('change', onSystemChange);
+  else if (darkMedia.addListener) darkMedia.addListener(onSystemChange);
+}
+applyTheme();
+
 /* ---- SETTINGS ---- */
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const swPreviews = document.getElementById('swPreviews');
@@ -1553,6 +1589,7 @@ const swErrorCheck = document.getElementById('swErrorCheck');
 const swAutoCross = document.getElementById('swAutoCross');
 const swSound = document.getElementById('swSound');
 const swVibration = document.getElementById('swVibration');
+const themeSeg = document.getElementById('themeSeg');
 
 // Вибрация не поддерживается (iOS Safari, десктопы) — прячем строку целиком.
 if (!('vibrate' in navigator)) document.getElementById('rowVibration').style.display = 'none';
@@ -1569,7 +1606,21 @@ function syncSettingsUI() {
   swSound.setAttribute('aria-checked', String(s.sound));
   swVibration.classList.toggle('on', s.vibration);
   swVibration.setAttribute('aria-checked', String(s.vibration));
+  const theme = s.theme || 'auto';
+  themeSeg.querySelectorAll('.seg-btn').forEach(btn => {
+    const on = btn.dataset.themeVal === theme;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', String(on));
+  });
 }
+
+themeSeg.querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    saveSettings({ theme: btn.dataset.themeVal });
+    applyTheme();
+    syncSettingsUI();
+  });
+});
 
 document.getElementById('btnSettings').addEventListener('click', () => {
   syncSettingsUI();

@@ -13,8 +13,9 @@ const SETTINGS_KEY = 'nonogram_settings_v1';
    autoCross — автоматически закрывать крестиками пустые клетки строки/
      столбца, когда линия сошлась (стандарт жанра: Picross S и др.);
    sound — звуковые сигналы при ошибке, победе и автокрестиках;
-   vibration — вибро-отклик на те же события (где поддерживается). */
-const DEFAULT_SETTINGS = { showPreviews: true, errorCheck: true, autoCross: true, sound: true, vibration: true };
+   vibration — вибро-отклик на те же события (где поддерживается);
+   theme — оформление: 'auto' (по системе), 'light' или 'dark'. */
+const DEFAULT_SETTINGS = { showPreviews: true, errorCheck: true, autoCross: true, sound: true, vibration: true, theme: 'auto' };
 
 export function loadSettings() {
   try {

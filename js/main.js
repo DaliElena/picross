@@ -44,6 +44,34 @@ document.getElementById('toolToggle').addEventListener('click', () => {
 /* ---- BUTTONS ---- */
 document.getElementById('btnHint').addEventListener('click', () => { if (!state.solved) hint(); });
 
+/* ---- THEME ----
+   Настройка theme: 'auto' | 'light' | 'dark'. Инлайновый скрипт в <head> уже
+   проставил data-theme до первой отрисовки; здесь держим его в актуальном
+   состоянии при переключении и — в режиме «Системная» — при смене темы ОС. */
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+const darkMedia = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+
+function resolveTheme(pref) {
+  if (pref === 'light' || pref === 'dark') return pref;
+  return darkMedia && darkMedia.matches ? 'dark' : 'light';
+}
+function applyTheme() {
+  const resolved = resolveTheme(loadSettings().theme);
+  document.documentElement.setAttribute('data-theme', resolved);
+  if (themeMeta) themeMeta.setAttribute('content', resolved === 'dark' ? '#14181f' : '#0064e0');
+  // Открытый каталог перерисовываем: canvas-превью берут цвет темы при отрисовке.
+  if (document.getElementById('menuPanel').classList.contains('open')) renderMenuPuzzles();
+}
+if (darkMedia) {
+  const onSystemChange = () => {
+    const pref = loadSettings().theme;
+    if (pref !== 'light' && pref !== 'dark') applyTheme();
+  };
+  if (darkMedia.addEventListener) darkMedia.addEventListener('change', onSystemChange);
+  else if (darkMedia.addListener) darkMedia.addListener(onSystemChange);
+}
+applyTheme();
+
 /* ---- SETTINGS ---- */
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const swPreviews = document.getElementById('swPreviews');
@@ -51,6 +79,7 @@ const swErrorCheck = document.getElementById('swErrorCheck');
 const swAutoCross = document.getElementById('swAutoCross');
 const swSound = document.getElementById('swSound');
 const swVibration = document.getElementById('swVibration');
+const themeSeg = document.getElementById('themeSeg');
 
 // Вибрация не поддерживается (iOS Safari, десктопы) — прячем строку целиком.
 if (!('vibrate' in navigator)) document.getElementById('rowVibration').style.display = 'none';
@@ -67,7 +96,21 @@ function syncSettingsUI() {
   swSound.setAttribute('aria-checked', String(s.sound));
   swVibration.classList.toggle('on', s.vibration);
   swVibration.setAttribute('aria-checked', String(s.vibration));
+  const theme = s.theme || 'auto';
+  themeSeg.querySelectorAll('.seg-btn').forEach(btn => {
+    const on = btn.dataset.themeVal === theme;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', String(on));
+  });
 }
+
+themeSeg.querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    saveSettings({ theme: btn.dataset.themeVal });
+    applyTheme();
+    syncSettingsUI();
+  });
+});
 
 document.getElementById('btnSettings').addEventListener('click', () => {
   syncSettingsUI();

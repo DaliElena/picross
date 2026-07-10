@@ -3,21 +3,77 @@
 :root {
   --accent: #0064e0;
   --accent-shadow: rgba(0,100,224,0.28);
-  --bg: #ffffff;
-  --surface: #f1f4f7;
+  --app-bg: #f1f4f7;      /* фон страницы на десктопе (вокруг карточки) */
+  --bg: #ffffff;          /* основные поверхности: хедер, поле, нижняя панель */
+  --elevated: #ffffff;    /* «приподнятые» элементы: кнопки зума, ползунок инструмента */
+  --surface: #f1f4f7;     /* круглые кнопки, чипы, заглушки превью */
+  --surface-2: #e6ebf0;   /* hover кнопок зума */
+  --surface-3: #dde3e9;   /* active кнопок зума */
   --border: #eef1f4;
-  --line: #b9c2cc;
-  --sep: #7a8794;
+  --line: #b9c2cc;        /* тонкие линии сетки */
+  --sep: #7a8794;         /* жирные разделители сетки (каждые 5 клеток) */
   --text: #0a1317;
   --text2: #1c1e21;
   --muted: #8595a4;
+  --cross: #1c1e21;       /* крестики и штрихи иконок */
   --tint-hl: rgba(0,100,224,0.18);
+  --tint-active: rgba(0,100,224,0.08); /* активный пазл в каталоге */
+  --cell-empty: #eef2f6;  /* пустая клетка в превью решения */
+  --pixel-gap: #ffffff;   /* сетка пикселей на экране победы */
   --err: #e41e3f;
+  --switch-off: #ced0d4;  /* выключенный тумблер / контур кнопки */
   --inprogress: #ffd24a;
   --green: #1f7a3d;
   --green-bg: #e3f4e8;
+  --overlay: rgba(10,19,23,0.48); /* затемнение под модалками */
+  --card-bg: #ffffff;     /* карточки: результат, подтверждение */
+  --pixel-wrap-bg: #f7f9fb;
   --menu-w: 320px;
+  color-scheme: light;
 }
+
+/* ---- ТЁМНАЯ ТЕМА ----
+   Атрибут data-theme на <html> проставляет инлайновый скрипт в <head> (до
+   отрисовки, без мигания) и модуль настроек при переключении. Режим «Системная»
+   разрешается в light/dark в JS, поэтому здесь достаточно одного селектора. */
+:root[data-theme="dark"] {
+  --accent: #4d9bff;
+  --accent-shadow: rgba(77,155,255,0.32);
+  --app-bg: #0d1117;
+  --bg: #14181f;
+  --elevated: #1c222b;
+  --surface: #232a34;
+  --surface-2: #2c343f;
+  --surface-3: #353e4a;
+  --border: #262d37;
+  --line: #3a434f;
+  --sep: #5a6675;
+  --text: #eef2f6;
+  --text2: #e3e8ee;
+  --muted: #8c99a8;
+  --cross: #c4ccd6;
+  --tint-hl: rgba(77,155,255,0.22);
+  --tint-active: rgba(77,155,255,0.14);
+  --cell-empty: #232a34;
+  --pixel-gap: #14181f;
+  --err: #ff5a72;
+  --switch-off: #3a434f;
+  --green: #4ec27a;
+  --green-bg: rgba(78,194,122,0.16);
+  --overlay: rgba(0,0,0,0.62);
+  --card-bg: #1c222b;
+  --pixel-wrap-bg: #232a34;
+  color-scheme: dark;
+}
+
+/* Иконки на инлайн-SVG в разметке: перекрашиваем через CSS (побеждает
+   presentation-атрибут stroke=...), чтобы они читались в обеих темах. */
+.icon-btn svg { stroke: var(--text2); }
+.menu-close-btn svg line { stroke: var(--cross); }
+#toolToggle .ti-fill rect { fill: var(--cross); }
+#toolToggle .ti-cross line { stroke: var(--cross); }
+/* Крестики в клетках рисуются из JS без цвета — задаём его темой здесь. */
+.cell .cross-mark line { stroke: var(--cross); }
 
 html, body { height: 100%; overflow: hidden; }
 body {
@@ -174,13 +230,13 @@ body {
 #zoomCtl.collapsed #btnZoomToggle { color: var(--accent); }
 .zoom-btn {
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-  background: #fff; border: none; cursor: pointer;
+  background: var(--elevated); border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   color: var(--text2); transition: background 0.12s, opacity 0.12s, color 0.12s;
 }
-.zoom-btn:hover { background: #e6ebf0; }
+.zoom-btn:hover { background: var(--surface-2); }
 .zoom-btn:disabled { opacity: 0.35; cursor: default; }
-.zoom-btn:active { background: #dde3e9; }
+.zoom-btn:active { background: var(--surface-3); }
 .cell.flash-err { animation: nonoErr 0.55s ease both; }
 .cell.hint-hl   { animation: hintPulse 1.6s ease-in-out infinite; }
 .cell svg.auto-cross {
@@ -231,7 +287,7 @@ body {
 #toolThumb {
   position: absolute; top: 4px; left: 4px;
   width: 44px; height: 44px; border-radius: 50%;
-  background: #fff;
+  background: var(--elevated);
   box-shadow: 0 2px 8px rgba(0,0,0,0.14);
   transition: transform 0.22s cubic-bezier(.4,0,.2,1);
   pointer-events: none;
@@ -266,19 +322,19 @@ body {
 #ghostGrid { display: grid; }
 .result-card {
   position: relative; width: 100%; max-width: 360px;
-  background: #fff; border-radius: 28px;
+  background: var(--card-bg); border-radius: 28px;
   padding: 28px 24px 24px; text-align: center;
   box-shadow: 0 20px 50px rgba(0,0,0,0.45);
   animation: cardIn 0.4s ease both;
 }
 .result-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
 .result-title { font-size: 24px; font-weight: 600; color: var(--text); margin-top: 4px; }
-.pixel-wrap { margin: 18px auto 0; width: fit-content; padding: 12px; background: #f7f9fb; border-radius: 16px; }
+.pixel-wrap { margin: 18px auto 0; width: fit-content; padding: 12px; background: var(--pixel-wrap-bg); border-radius: 16px; }
 #pixelGrid { display: grid; border-radius: 5px; overflow: hidden; }
 .stars-row { display: flex; justify-content: center; gap: 10px; margin-top: 18px; }
-.stats-row { display: flex; margin-top: 20px; border-top: 1px solid #eef1f4; border-bottom: 1px solid #eef1f4; }
+.stats-row { display: flex; margin-top: 20px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .stat { flex: 1; padding: 14px 0; }
-.stat-divider { width: 1px; background: #eef1f4; }
+.stat-divider { width: 1px; background: var(--border); }
 .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; color: var(--text); }
 .stat-lbl { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 2px; }
 .btn-primary {
@@ -292,7 +348,7 @@ body {
 .btn-row { display: flex; gap: 10px; margin-top: 10px; }
 .btn-outline {
   flex: 1; height: 48px; border-radius: 100px;
-  border: 1.5px solid #ced0d4; color: var(--text2);
+  border: 1.5px solid var(--switch-off); color: var(--text2);
   font-size: 14px; font-weight: 600;
   display: flex; align-items: center; justify-content: center; gap: 7px;
   cursor: pointer; background: none; font-family: 'Montserrat', sans-serif;
@@ -308,7 +364,7 @@ body {
 /* ---- SETTINGS MODAL (bottom sheet) ---- */
 #settingsBackdrop {
   position: fixed; inset: 0;
-  background: rgba(10,19,23,0.48);
+  background: var(--overlay);
   z-index: 30;
   display: none; align-items: flex-end; justify-content: center;
 }
@@ -356,7 +412,7 @@ body {
   position: relative; flex-shrink: 0;
   width: 46px; height: 28px; border-radius: 100px;
   border: none; cursor: pointer;
-  background: #ced0d4;
+  background: var(--switch-off);
   transition: background 0.18s;
   padding: 0;
 }
@@ -370,10 +426,29 @@ body {
 }
 .switch.on .switch-thumb { transform: translateX(18px); }
 
+/* ---- SEGMENTED CONTROL (выбор темы) ---- */
+.settings-row.stacked { flex-direction: column; align-items: stretch; gap: 12px; }
+.seg {
+  display: flex; gap: 4px;
+  background: var(--surface); border-radius: 12px; padding: 4px;
+}
+.seg-btn {
+  flex: 1; height: 38px; border: none; background: none; cursor: pointer;
+  border-radius: 9px; font-family: 'Montserrat', sans-serif;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.seg-btn svg { width: 15px; height: 15px; }
+.seg-btn.active {
+  background: var(--elevated); color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+
 /* ---- CONFIRM MODAL ---- */
 #confirmBackdrop {
   position: fixed; inset: 0;
-  background: rgba(10,19,23,0.48);
+  background: var(--overlay);
   z-index: 30;
   display: none; align-items: center; justify-content: center;
   padding: 24px;
@@ -381,7 +456,7 @@ body {
 #confirmBackdrop.open { display: flex; }
 .confirm-card {
   width: 100%; max-width: 400px;
-  background: #fff; border-radius: 22px;
+  background: var(--card-bg); border-radius: 22px;
   padding: 22px 20px 20px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.35);
   animation: cardIn 0.25s ease both;
@@ -395,7 +470,7 @@ body {
 /* ======== MENU OVERLAY ======== */
 #menuBackdrop {
   position: fixed; inset: 0;
-  background: rgba(10,19,23,0.48);
+  background: var(--overlay);
   z-index: 20;
   display: none; opacity: 0;
   transition: opacity 0.25s;
@@ -470,7 +545,7 @@ body {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 100px;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 10px; font-weight: 700; line-height: 1;
-  background: rgba(0,0,0,0.06); color: var(--muted);
+  background: var(--surface-2); color: var(--muted);
 }
 .filter-chip.active {
   background: var(--accent); color: #fff; border-color: var(--accent);
@@ -497,7 +572,7 @@ body {
   font-family: 'Montserrat', sans-serif;
 }
 .puzzle-card:hover { background: var(--surface); }
-.puzzle-card.active-puzzle { background: rgba(0,100,224,0.08); }
+.puzzle-card.active-puzzle { background: var(--tint-active); }
 .puzzle-preview {
   width: 48px; height: 48px; border-radius: 10px;
   overflow: hidden; flex-shrink: 0;
@@ -582,9 +657,9 @@ body {
 .hs-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 2px; }
 
 @media (min-width: 600px) {
-  body { background: #f1f4f7; align-items: center; justify-content: center; overflow: auto; }
+  body { background: var(--app-bg); align-items: center; justify-content: center; overflow: auto; }
   #app {
-    width: 460px; background: #fff; border-radius: 24px;
+    width: 460px; background: var(--bg); border-radius: 24px;
     box-shadow: 0 20px 60px rgba(16,24,32,0.16);
     display: flex; flex-direction: column; overflow: hidden;
     position: relative;

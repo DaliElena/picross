@@ -81,8 +81,8 @@ export function isSep(idx) { return idx % 5 === 0; }
 
 export function borderCSS(topSep, leftSep) {
   return [
-    topSep  ? `1.5px solid ${SEP}` : `0.5px solid ${LINE}`,
-    leftSep ? `1.5px solid ${SEP}` : `0.5px solid ${LINE}`,
+    topSep  ? '1.5px solid var(--sep)' : '0.5px solid var(--line)',
+    leftSep ? '1.5px solid var(--sep)' : '0.5px solid var(--line)',
   ];
 }
 
@@ -94,8 +94,8 @@ export function renderCell(i, j) {
   const inHl    = state.hlRow === i || state.hlCol === j;
   const isHint  = state.hintCell && state.hintCell.i === i && state.hintCell.j === j;
   let bg = 'transparent';
-  if (st === 1)    bg = ACCENT;
-  else if (inHl)   bg = TINT_HL;
+  if (st === 1)    bg = 'var(--accent)';
+  else if (inHl)   bg = 'var(--tint-hl)';
 
   const [bt, bl] = borderCSS(isSep(i), isSep(j));
   el.style.borderTop  = bt;
@@ -105,9 +105,9 @@ export function renderCell(i, j) {
 
   if (st === 2) {
     const sz = Math.round(state.CS * 0.42);
-    el.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 18 18" fill="none">
-      <line x1="3" y1="3" x2="15" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
-      <line x1="15" y1="3" x2="3" y2="15" stroke="#1c1e21" stroke-width="2.5" stroke-linecap="round"/>
+    el.innerHTML = `<svg class="cross-mark" width="${sz}" height="${sz}" viewBox="0 0 18 18" fill="none">
+      <line x1="3" y1="3" x2="15" y2="15" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="15" y1="3" x2="3" y2="15" stroke-width="2.5" stroke-linecap="round"/>
     </svg>`;
   } else {
     el.innerHTML = '';
@@ -129,7 +129,7 @@ export function renderClues() {
     const [, bl] = borderCSS(false, isSep(j));
     const d = document.createElement('div');
     d.className = 'col-clue';
-    d.style.cssText = `width:${state.CS}px;min-height:${state.CH}px;font-size:${state.FSIZE}px;border-left:${bl};background:${hl ? TINT_HL : 'transparent'};opacity:${dim ? 0.3 : 1};color:#1c1e21`;
+    d.style.cssText = `width:${state.CS}px;min-height:${state.CH}px;font-size:${state.FSIZE}px;border-left:${bl};background:${hl ? 'var(--tint-hl)' : 'transparent'};opacity:${dim ? 0.3 : 1};color:var(--text2)`;
     d.innerHTML = nums.map(n => `<span style="line-height:1.1">${n}</span>`).join('');
     d.addEventListener('click', () => toggleHlCol(j));
     ccEl.appendChild(d);
@@ -144,7 +144,7 @@ export function renderClues() {
     const [bt] = borderCSS(isSep(i), false);
     const d = document.createElement('div');
     d.className = 'row-clue';
-    d.style.cssText = `width:${state.RW}px;height:${state.CS}px;font-size:${state.FSIZE}px;border-top:${bt};background:${hl ? TINT_HL : 'transparent'};opacity:${dim ? 0.3 : 1}`;
+    d.style.cssText = `width:${state.RW}px;height:${state.CS}px;font-size:${state.FSIZE}px;border-top:${bt};background:${hl ? 'var(--tint-hl)' : 'transparent'};opacity:${dim ? 0.3 : 1}`;
     d.innerHTML = nums.map(n => `<span>${n}</span>`).join('');
     d.addEventListener('click', () => toggleHlRow(i));
     rcEl.appendChild(d);
@@ -532,7 +532,7 @@ function complete() {
   px.style.gridTemplateColumns = `repeat(${state.N}, ${pxSize}px)`;
   for (let i = 0; i < state.N; i++) for (let j = 0; j < state.N; j++) {
     const d = document.createElement('div');
-    d.style.cssText = `width:${pxSize}px;height:${pxSize}px;box-sizing:border-box;background:${state.SOL[i][j] ? ACCENT : '#eef2f6'};border-right:0.5px solid #fff;border-bottom:0.5px solid #fff`;
+    d.style.cssText = `width:${pxSize}px;height:${pxSize}px;box-sizing:border-box;background:${state.SOL[i][j] ? 'var(--accent)' : 'var(--cell-empty)'};border-right:0.5px solid var(--pixel-gap);border-bottom:0.5px solid var(--pixel-gap)`;
     px.appendChild(d);
   }
 
