@@ -174,11 +174,15 @@ export function applyTool(i, j, toggle) {
 // Возвращает true, если ход оказался ошибкой (заливка по пустой по решению клетке).
 export function commitCell(i, j, val) {
   if (state.grid[i][j] === val) return false;
-  // Правильно закрашенную клетку (grid === 1 всегда верна) нельзя снять или перекрыть крестиком.
-  if (state.grid[i][j] === 1 && val !== 1) return false;
-  if (val === 1 && state.SOL[i][j] === 0) {
+  const errorCheck = loadSettings().errorCheck;
+  // С проверкой ошибок правильно закрашенную клетку (grid === 1 всегда верна)
+  // нельзя снять или перекрыть крестиком. В свободном режиме заливка может
+  // оказаться ошибочной — её нужно разрешить стирать, чтобы исправить.
+  if (errorCheck && state.grid[i][j] === 1 && val !== 1) return false;
+  if (errorCheck && val === 1 && state.SOL[i][j] === 0) {
     state.mistakes++;
-    document.getElementById('mistakesVal').textContent = state.mistakes;
+    const mv = document.getElementById('mistakesVal');
+    if (mv) mv.textContent = state.mistakes;
     sfxError();
     flashError(i, j);
     _clearHint();
@@ -406,7 +410,8 @@ function updateZoomUI() {
 
 /* ---- FULL RENDER ---- */
 export function render() {
-  document.getElementById('mistakesVal').textContent = state.mistakes;
+  const mv = document.getElementById('mistakesVal');
+  if (mv) mv.textContent = state.mistakes;
   renderClues();
 
   const gEl = document.getElementById('grid');
@@ -550,6 +555,35 @@ function complete() {
   document.getElementById('completionOverlay').classList.add('active');
 }
 
+/* Подпись под заголовком: размер поля и — в режиме с проверкой — счётчик
+   ошибок. В свободном режиме счётчика нет, вместо него метка режима. */
+export function updateHeaderMeta() {
+  const meta = document.getElementById('headerMeta');
+  if (!meta) return;
+  const base = `${state.N} × ${state.N}`;
+  meta.innerHTML = loadSettings().errorCheck
+    ? `${base} · ошибок: <span id="mistakesVal">${state.mistakes}</span>`
+    : `${base} · свободный режим`;
+}
+
+/* При включении проверки ошибок инвариант «grid === 1 всегда верна» должен
+   снова выполняться: заливки, сделанные в свободном режиме по пустым по
+   решению клеткам, стираем — иначе защита от снятия правильных клеток
+   заперла бы их навсегда и пазл стал бы нерешаемым. */
+export function purgeWrongFills() {
+  if (state.solved) return;
+  let changed = false;
+  for (let i = 0; i < state.N; i++)
+    for (let j = 0; j < state.N; j++)
+      if (state.grid[i][j] === 1 && state.SOL[i][j] === 0) {
+        state.grid[i][j] = 0;
+        renderCell(i, j);
+        refreshClueOpacity(i, j);
+        changed = true;
+      }
+  if (changed) _saveProgress(state);
+}
+
 /* ---- LOAD PUZZLE ---- */
 export function loadPuzzle(id) {
   const puz = PUZZLES.find(p => p.id === id);
@@ -575,8 +609,7 @@ export function loadPuzzle(id) {
   const badge = document.getElementById('headerBadge');
   badge.textContent = DIFF_LABEL[puz.difficulty];
   badge.className   = 'badge ' + (DIFF_CLASS[puz.difficulty] || '');
-  document.getElementById('headerMeta').innerHTML =
-    `${state.N} × ${state.N} · ошибок: <span id="mistakesVal">0</span>`;
+  updateHeaderMeta();
   document.getElementById('completionOverlay').classList.remove('active');
   computeSize(); render();
   applyAutoCrossAll(false);
@@ -595,8 +628,7 @@ export function resetGame() {
   const badge = document.getElementById('headerBadge');
   badge.textContent = DIFF_LABEL[puz.difficulty];
   badge.className   = 'badge ' + (DIFF_CLASS[puz.difficulty] || '');
-  document.getElementById('headerMeta').innerHTML =
-    `${state.N} × ${state.N} · ошибок: <span id="mistakesVal">0</span>`;
+  updateHeaderMeta();
   computeSize(); render();
   applyAutoCrossAll(false);
 }

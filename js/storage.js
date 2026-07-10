@@ -7,11 +7,14 @@ const SETTINGS_KEY = 'nonogram_settings_v1';
 /* Настройки игры:
    showPreviews — показывать ли в каталоге картинку решения нерешённых
      пазлов (для решённых превью показывается всегда);
+   errorCheck — проверка ошибок: ошибочная заливка мигает, откатывается и
+     засчитывается в счётчик. Выключение включает «свободный режим» пуристов:
+     заливать можно любую клетку, ошибку выдаёт противоречие в подсказках;
    autoCross — автоматически закрывать крестиками пустые клетки строки/
      столбца, когда линия сошлась (стандарт жанра: Picross S и др.);
    sound — звуковые сигналы при ошибке, победе и автокрестиках;
    vibration — вибро-отклик на те же события (где поддерживается). */
-const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true, sound: true, vibration: true };
+const DEFAULT_SETTINGS = { showPreviews: true, errorCheck: true, autoCross: true, sound: true, vibration: true };
 
 export function loadSettings() {
   try {

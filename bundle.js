@@ -152,11 +152,14 @@ const SETTINGS_KEY = 'nonogram_settings_v1';
 /* Настройки игры:
    showPreviews — показывать ли в каталоге картинку решения нерешённых
      пазлов (для решённых превью показывается всегда);
+   errorCheck — проверка ошибок: ошибочная заливка мигает, откатывается и
+     засчитывается в счётчик. Выключение включает «свободный режим» пуристов:
+     заливать можно любую клетку, ошибку выдаёт противоречие в подсказках;
    autoCross — автоматически закрывать крестиками пустые клетки строки/
      столбца, когда линия сошлась (стандарт жанра: Picross S и др.);
    sound — звуковые сигналы при ошибке, победе и автокрестиках;
    vibration — вибро-отклик на те же события (где поддерживается). */
-const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true, sound: true, vibration: true };
+const DEFAULT_SETTINGS = { showPreviews: true, errorCheck: true, autoCross: true, sound: true, vibration: true };
 
 function loadSettings() {
   try {
@@ -505,11 +508,15 @@ function applyTool(i, j, toggle) {
 // Возвращает true, если ход оказался ошибкой (заливка по пустой по решению клетке).
 function commitCell(i, j, val) {
   if (state.grid[i][j] === val) return false;
-  // Правильно закрашенную клетку (grid === 1 всегда верна) нельзя снять или перекрыть крестиком.
-  if (state.grid[i][j] === 1 && val !== 1) return false;
-  if (val === 1 && state.SOL[i][j] === 0) {
+  const errorCheck = loadSettings().errorCheck;
+  // С проверкой ошибок правильно закрашенную клетку (grid === 1 всегда верна)
+  // нельзя снять или перекрыть крестиком. В свободном режиме заливка может
+  // оказаться ошибочной — её нужно разрешить стирать, чтобы исправить.
+  if (errorCheck && state.grid[i][j] === 1 && val !== 1) return false;
+  if (errorCheck && val === 1 && state.SOL[i][j] === 0) {
     state.mistakes++;
-    document.getElementById('mistakesVal').textContent = state.mistakes;
+    const mv = document.getElementById('mistakesVal');
+    if (mv) mv.textContent = state.mistakes;
     sfxError();
     flashError(i, j);
     _clearHint();
@@ -737,7 +744,8 @@ function updateZoomUI() {
 
 /* ---- FULL RENDER ---- */
 function render() {
-  document.getElementById('mistakesVal').textContent = state.mistakes;
+  const mv = document.getElementById('mistakesVal');
+  if (mv) mv.textContent = state.mistakes;
   renderClues();
 
   const gEl = document.getElementById('grid');
@@ -881,6 +889,35 @@ function complete() {
   document.getElementById('completionOverlay').classList.add('active');
 }
 
+/* Подпись под заголовком: размер поля и — в режиме с проверкой — счётчик
+   ошибок. В свободном режиме счётчика нет, вместо него метка режима. */
+function updateHeaderMeta() {
+  const meta = document.getElementById('headerMeta');
+  if (!meta) return;
+  const base = `${state.N} × ${state.N}`;
+  meta.innerHTML = loadSettings().errorCheck
+    ? `${base} · ошибок: <span id="mistakesVal">${state.mistakes}</span>`
+    : `${base} · свободный режим`;
+}
+
+/* При включении проверки ошибок инвариант «grid === 1 всегда верна» должен
+   снова выполняться: заливки, сделанные в свободном режиме по пустым по
+   решению клеткам, стираем — иначе защита от снятия правильных клеток
+   заперла бы их навсегда и пазл стал бы нерешаемым. */
+function purgeWrongFills() {
+  if (state.solved) return;
+  let changed = false;
+  for (let i = 0; i < state.N; i++)
+    for (let j = 0; j < state.N; j++)
+      if (state.grid[i][j] === 1 && state.SOL[i][j] === 0) {
+        state.grid[i][j] = 0;
+        renderCell(i, j);
+        refreshClueOpacity(i, j);
+        changed = true;
+      }
+  if (changed) _saveProgress(state);
+}
+
 /* ---- LOAD PUZZLE ---- */
 function loadPuzzle(id) {
   const puz = PUZZLES.find(p => p.id === id);
@@ -906,8 +943,7 @@ function loadPuzzle(id) {
   const badge = document.getElementById('headerBadge');
   badge.textContent = DIFF_LABEL[puz.difficulty];
   badge.className   = 'badge ' + (DIFF_CLASS[puz.difficulty] || '');
-  document.getElementById('headerMeta').innerHTML =
-    `${state.N} × ${state.N} · ошибок: <span id="mistakesVal">0</span>`;
+  updateHeaderMeta();
   document.getElementById('completionOverlay').classList.remove('active');
   computeSize(); render();
   applyAutoCrossAll(false);
@@ -926,8 +962,7 @@ function resetGame() {
   const badge = document.getElementById('headerBadge');
   badge.textContent = DIFF_LABEL[puz.difficulty];
   badge.className   = 'badge ' + (DIFF_CLASS[puz.difficulty] || '');
-  document.getElementById('headerMeta').innerHTML =
-    `${state.N} × ${state.N} · ошибок: <span id="mistakesVal">0</span>`;
+  updateHeaderMeta();
   computeSize(); render();
   applyAutoCrossAll(false);
 }
@@ -1514,6 +1549,7 @@ document.getElementById('btnHint').addEventListener('click', () => { if (!state.
 /* ---- SETTINGS ---- */
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const swPreviews = document.getElementById('swPreviews');
+const swErrorCheck = document.getElementById('swErrorCheck');
 const swAutoCross = document.getElementById('swAutoCross');
 const swSound = document.getElementById('swSound');
 const swVibration = document.getElementById('swVibration');
@@ -1525,6 +1561,8 @@ function syncSettingsUI() {
   const s = loadSettings();
   swPreviews.classList.toggle('on', s.showPreviews);
   swPreviews.setAttribute('aria-checked', String(s.showPreviews));
+  swErrorCheck.classList.toggle('on', s.errorCheck);
+  swErrorCheck.setAttribute('aria-checked', String(s.errorCheck));
   swAutoCross.classList.toggle('on', s.autoCross);
   swAutoCross.setAttribute('aria-checked', String(s.autoCross));
   swSound.classList.toggle('on', s.sound);
@@ -1543,6 +1581,15 @@ swPreviews.addEventListener('click', () => {
   // Каталог перерисовывается при каждом открытии меню, но если меню уже
   // открыто под модалкой — обновляем список сразу
   if (document.getElementById('menuPanel').classList.contains('open')) renderMenuPuzzles();
+});
+swErrorCheck.addEventListener('click', () => {
+  const on = !loadSettings().errorCheck;
+  saveSettings({ errorCheck: on });
+  syncSettingsUI();
+  // Включили проверку — стираем заливки, оказавшиеся ошибочными в свободном
+  // режиме, иначе защита правильных клеток заперла бы их навсегда.
+  if (on) purgeWrongFills();
+  updateHeaderMeta();
 });
 swAutoCross.addEventListener('click', () => {
   const on = !loadSettings().autoCross;
