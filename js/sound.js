@@ -38,10 +38,46 @@ function playTones(tones) {
   for (const t of tones) tone(ac, t);
 }
 
-// navigator.vibrate есть не везде (iOS Safari и десктопы — нет).
+/* navigator.vibrate есть не везде: iOS (Safari и все браузеры на нём) и
+   десктопы — нет. Для iOS 17.4+ есть обходной путь: программный клик по
+   label со скрытым <input type="checkbox" switch> вызывает системный
+   хаптик-тик. Паттерн эмулируем серией тиков. */
+const iosHaptics = !navigator.vibrate &&
+  (/iPhone|iPad|iPod/.test(navigator.userAgent) ||
+   // iPad с iOS 13+ представляется как Mac, отличаем по мультитачу.
+   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+let hapticEl = null;
+function iosTick() {
+  if (!hapticEl) {
+    hapticEl = document.createElement('label');
+    hapticEl.setAttribute('aria-hidden', 'true');
+    hapticEl.style.display = 'none';
+    const sw = document.createElement('input');
+    sw.type = 'checkbox';
+    sw.setAttribute('switch', '');
+    hapticEl.appendChild(sw);
+    document.body.appendChild(hapticEl);
+  }
+  hapticEl.click();
+}
+
+// Есть ли на устройстве хоть какой-то вибро-отклик (для показа настройки).
+export function canVibrate() {
+  return 'vibrate' in navigator || iosHaptics;
+}
+
 export function vibrate(pattern) {
   if (!loadSettings().vibration) return;
-  navigator.vibrate?.(pattern);
+  if (navigator.vibrate) { navigator.vibrate(pattern); return; }
+  if (!iosHaptics) return;
+  // Тик в начале каждого «вибро»-отрезка паттерна [вибро, пауза, вибро, …].
+  const segs = Array.isArray(pattern) ? pattern : [pattern];
+  let t = 0;
+  for (let k = 0; k < segs.length; k += 2) {
+    if (t === 0) iosTick(); else setTimeout(iosTick, t);
+    t += segs[k] + (segs[k + 1] || 0);
+  }
 }
 
 /* Ошибка: короткий низкий «бзз» из двух нисходящих тонов. */

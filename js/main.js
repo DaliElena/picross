@@ -3,7 +3,7 @@ import { openMenu, closeMenu, renderMenuPuzzles, renderHistory } from './ui.js';
 import { PUZZLES } from './puzzles.js';
 import { loadDataset } from './dataset.js';
 import { getLastPuzzle, loadSettings, saveSettings } from './storage.js';
-import { sfxAutoCross, vibrate } from './sound.js';
+import { sfxAutoCross, vibrate, canVibrate } from './sound.js';
 
 /* ---- PUZZLE LIST UPDATE CALLBACK ---- */
 setOnPuzzleListUpdate(() => {
@@ -82,7 +82,7 @@ const swVibration = document.getElementById('swVibration');
 const themeSeg = document.getElementById('themeSeg');
 
 // Вибрация не поддерживается (iOS Safari, десктопы) — прячем строку целиком.
-if (!('vibrate' in navigator)) document.getElementById('rowVibration').style.display = 'none';
+if (!canVibrate()) document.getElementById('rowVibration').style.display = 'none';
 
 function syncSettingsUI() {
   const s = loadSettings();
