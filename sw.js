@@ -1,4 +1,4 @@
-const CACHE = 'picross-v6';
+const CACHE = 'picross-v7';
 const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS = [
   BASE + '/',
@@ -30,6 +30,22 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
 
   const url = new URL(e.request.url);
+
+  // Google Fonts (CSS и файлы шрифтов) — cache-first с докэшированием,
+  // чтобы шрифты работали офлайн после первого визита.
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    e.respondWith(
+      caches.match(e.request).then(cached =>
+        cached || fetch(e.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+          return res;
+        })
+      )
+    );
+    return;
+  }
+
   // Часто меняющиеся файлы (страница и бандл) — network-first,
   // чтобы новые деплои подхватывались без ручной смены версии кэша.
   const isFresh = e.request.mode === 'navigate'
@@ -46,7 +62,14 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, copy));
           return res;
         })
-        .catch(() => caches.match(e.request))
+        .catch(() =>
+          caches.match(e.request).then(cached => {
+            if (cached) return cached;
+            // Навигация по любому адресу внутри приложения офлайн —
+            // отдаём закэшированную оболочку.
+            if (e.request.mode === 'navigate') return caches.match(BASE + '/index.html');
+          })
+        )
     );
     return;
   }
