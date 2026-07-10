@@ -305,18 +305,49 @@ body {
   cursor: pointer; background: none; font-family: 'Montserrat', sans-serif;
 }
 
-/* ---- SETTINGS MODAL ---- */
+/* ---- SETTINGS MODAL (bottom sheet) ---- */
 #settingsBackdrop {
   position: fixed; inset: 0;
   background: rgba(10,19,23,0.48);
   z-index: 30;
-  display: none; align-items: center; justify-content: center;
-  padding: 24px;
+  display: none; align-items: flex-end; justify-content: center;
 }
 #settingsBackdrop.open { display: flex; }
+.settings-sheet {
+  width: 100%; max-width: 480px;
+  background: var(--bg);
+  border-radius: 24px 24px 0 0;
+  padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.22);
+  animation: sheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.settings-handle {
+  width: 40px; height: 4px; border-radius: 100px;
+  background: var(--line);
+  margin: 0 auto 10px;
+}
+.settings-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.settings-title { font-size: 18px; font-weight: 700; color: var(--text); }
+.settings-close {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border: none; border-radius: 50%; cursor: pointer;
+  background: var(--surface); color: var(--muted);
+  font-size: 13px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.settings-close:active { background: var(--border); }
 .settings-row {
   display: flex; align-items: center; gap: 14px;
-  margin-top: 16px; text-align: left;
+  padding: 14px 0; text-align: left;
+  border-top: 1px solid var(--border);
 }
 .settings-row-text { flex: 1; min-width: 0; }
 .settings-row-title { font-size: 14px; font-weight: 600; color: var(--text); }
