@@ -201,15 +201,19 @@ body {
   display: grid;
   border-right: 1.5px solid var(--sep);
   border-bottom: 1.5px solid var(--sep);
-  /* none: одним пальцем рисуем; жесты двумя пальцами обрабатываем сами (JS) */
-  touch-action: none; user-select: none;
+  /* pan-x pan-y: свайп одним пальцем отдаём браузеру — нативная прокрутка
+     с инерцией и фиксацией оси. Рисование (тап/удержание, game.js) и жесты
+     двумя пальцами свои; на их время touchmove гасится в main.js. */
+  touch-action: pan-x pan-y; user-select: none; -webkit-touch-callout: none;
 }
 .cell {
   width: var(--cs); height: var(--cs);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; touch-action: none; user-select: none;
+  cursor: pointer; touch-action: pan-x pan-y; user-select: none; -webkit-touch-callout: none;
   position: relative;
 }
+/* Палец удержан — режим рисования включён, движение поведёт протяжку */
+.cell.press-arm { box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* ---- ZOOM CONTROL (в нижней панели) ---- */
 #zoomCtl {

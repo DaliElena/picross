@@ -1,4 +1,4 @@
-import { loadPuzzle, computeSize, render, selectTool, hint, resetGame, nextPuzzle, state, setOnPuzzleListUpdate, setZoom, ZOOM_MIN, ZOOM_MAX, applyAutoCrossAll, updateHeaderMeta, purgeWrongFills } from './game.js';
+import { loadPuzzle, computeSize, render, selectTool, hint, resetGame, nextPuzzle, state, setOnPuzzleListUpdate, setZoom, ZOOM_MIN, ZOOM_MAX, applyAutoCrossAll, updateHeaderMeta, purgeWrongFills, cancelTouchPaint } from './game.js';
 import { openMenu, closeMenu, renderMenuPuzzles, renderHistory } from './ui.js';
 import { PUZZLES } from './puzzles.js';
 import { loadDataset } from './dataset.js';
@@ -194,45 +194,65 @@ puzzleArea.addEventListener('wheel', e => {
   zoomAt(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
 }, { passive: false });
 
-/* ---- ЖЕСТЫ: два пальца — перемещение + щипок ---- */
-const pts = new Map();
-let lastMid = null, lastDist = 0;
-function midDist() {
-  const a = [...pts.values()];
-  const mx = (a[0].x + a[1].x) / 2, my = (a[0].y + a[1].y) / 2;
-  return { mx, my, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) };
+/* ---- ЖЕСТЫ ----
+   Один палец: прокрутка нативная (touch-action: pan-x pan-y у сетки), а
+   рисование — тап/удержание (game.js). Пока рисование активно, touchmove
+   гасим — иначе браузер начнёт прокрутку под рисующим пальцем.
+   Два пальца: панорама и щипок свои (нативные не подходят: щипок должен
+   масштабировать сетку, а не страницу). Жест классифицируем по первым
+   миллиметрам («панорама» или «щипок») и фиксируем доминирующую ось
+   панорамы — без этого горизонтальный свайп дрейфовал по вертикали, а
+   гуляющее расстояние между пальцами дёргало зум и уводило экран. */
+let g2 = null; // текущий жест двумя пальцами
+function midDist(t) {
+  const mx = (t[0].clientX + t[1].clientX) / 2, my = (t[0].clientY + t[1].clientY) / 2;
+  return { mx, my, d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) };
 }
-puzzleArea.addEventListener('pointerdown', e => {
-  if (e.pointerType !== 'touch') return;
-  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pts.size === 2) {
-    state.gesture = true; state.dragging = false;       // второй палец — переходим в режим навигации
-    const m = midDist(); lastMid = { x: m.mx, y: m.my }; lastDist = m.d;
-  }
-});
-puzzleArea.addEventListener('pointermove', e => {
-  if (e.pointerType !== 'touch' || !pts.has(e.pointerId)) return;
-  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (!state.gesture || pts.size < 2) return;
+puzzleArea.addEventListener('touchstart', e => {
+  if (e.touches.length !== 2) return;
+  cancelTouchPaint();                 // отложенный ход первого пальца отменяем
+  state.dragging = false;
+  state.gesture = true;
+  const m = midDist(e.touches);
+  g2 = { mode: null, axis: 'free', sx: m.mx, sy: m.my, sd: m.d, lx: m.mx, ly: m.my, ld: m.d };
+}, { passive: true });
+
+puzzleArea.addEventListener('touchmove', e => {
+  // Рисование одним пальцем — прокрутку браузеру не отдаём.
+  if (state.dragging || state.touchArmed) e.preventDefault();
+  if (!g2 || e.touches.length < 2) return;
   e.preventDefault();
-  const m = midDist();
-  puzzleArea.scrollLeft -= (m.mx - lastMid.x);            // перемещение по midpoint
-  puzzleArea.scrollTop  -= (m.my - lastMid.y);
-  if (lastDist > 0 && Math.abs(m.d / lastDist - 1) > 0.01)
-    zoomAt(state.zoom * (m.d / lastDist), m.mx, m.my);    // щипок
-  lastMid = { x: m.mx, y: m.my }; lastDist = m.d;
-}, { passive: false });
-function endPointer(e) {
-  if (!pts.has(e.pointerId)) return;
-  pts.delete(e.pointerId);
-  if (pts.size < 2) {
-    lastMid = null; lastDist = 0;
-    setTimeout(() => { if (pts.size < 2) state.gesture = false; }, 0);
-    scheduleSnap();
+  const m = midDist(e.touches);
+  if (!g2.mode) {
+    const dm = Math.hypot(m.mx - g2.sx, m.my - g2.sy); // сдвиг средней точки
+    const dd = Math.abs(m.d - g2.sd);                  // изменение раствора пальцев
+    if (dd > 16 && dd > dm * 1.4) g2.mode = 'pinch';
+    else if (dm > 20) { // порог крупный: ось надёжно видна только на заметном сдвиге
+      g2.mode = 'pan';
+      const ax = Math.abs(m.mx - g2.sx), ay = Math.abs(m.my - g2.sy);
+      g2.axis = ax > ay * 2 ? 'x' : ay > ax * 2 ? 'y' : 'free'; // явная диагональ — свободно
+    }
   }
+  if (g2.mode === 'pan') {
+    if (g2.axis !== 'y') puzzleArea.scrollLeft -= m.mx - g2.lx;
+    if (g2.axis !== 'x') puzzleArea.scrollTop  -= m.my - g2.ly;
+  } else if (g2.mode === 'pinch') {
+    puzzleArea.scrollLeft -= m.mx - g2.lx;
+    puzzleArea.scrollTop  -= m.my - g2.ly;
+    if (g2.ld > 0) zoomAt(state.zoom * (m.d / g2.ld), m.mx, m.my);
+  }
+  g2.lx = m.mx; g2.ly = m.my; g2.ld = m.d;
+}, { passive: false });
+
+function endTouchGesture(e) {
+  if (!g2 || e.touches.length >= 2) return;
+  g2 = null;
+  // gesture снимаем тактом позже: pointerup оставшегося пальца не должен успеть сделать тап
+  setTimeout(() => { if (!g2) state.gesture = false; }, 0);
+  scheduleSnap();
 }
-puzzleArea.addEventListener('pointerup', endPointer);
-puzzleArea.addEventListener('pointercancel', endPointer);
+puzzleArea.addEventListener('touchend', endTouchGesture);
+puzzleArea.addEventListener('touchcancel', endTouchGesture);
 
 /* ---- ПРИВЯЗКА СКРОЛЛА: после остановки прокрутки выравниваем позицию по
    границе клетки, чтобы под примороженными подсказками не висели обрезанные

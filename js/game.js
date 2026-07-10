@@ -1,7 +1,7 @@
 import { PUZZLES, DIFF_LABEL, DIFF_CLASS, ACCENT, LINE, SEP, TINT_HL } from './puzzles.js';
 import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress, saveLastPuzzle, loadSettings } from './storage.js';
 import { loadDataset } from './dataset.js';
-import { sfxError, sfxWin, sfxAutoCross } from './sound.js';
+import { sfxError, sfxWin, sfxAutoCross, vibrate } from './sound.js';
 
 /* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
 const APP_W = 460;
@@ -27,6 +27,7 @@ export const state = {
   baseCS: 29,     // размер клетки при zoom=1 (вписанный в экран)
   zoom: 1,        // текущий масштаб (1 = вписано, >1 = увеличено)
   gesture: false, // активен жест двумя пальцами (перемещение/масштаб)
+  touchArmed: false, // палец удержан на клетке: рисуем, нативную прокрутку гасим (main.js)
   RW: 58,
   CH: 66,
   FSIZE: 12.5,
@@ -429,11 +430,10 @@ export function render() {
       el.addEventListener('pointerdown', e => onDown(e, i, j));
       el.addEventListener('pointerenter', () => onEnter(i, j));
       el.addEventListener('contextmenu', e => {
+        // ПКМ уже обработан в onDown (крестик + драг), тач-лонгпресс — на
+        // таймере CROSS_MS в onDown; системное меню в обоих случаях гасим.
         e.preventDefault();
-        // ПКМ уже обработан в onDown (крестик + драг) — не переключаем инструмент и не дублируем ход.
-        if (rightHandled) { rightHandled = false; return; }
-        // Тач-лонгпресс: ставим/снимаем крестик, активный инструмент не меняем.
-        commitCell(i, j, state.grid[i][j] === 2 ? 0 : 2);
+        rightHandled = false;
       });
       gEl.appendChild(el);
       renderCell(i, j);
@@ -441,6 +441,22 @@ export function render() {
   }
 
   gEl.onpointermove = e => {
+    // Отложенный тач-ход: по движению пальца решаем — прокрутка или протяжка.
+    if (press && e.pointerId === press.id) {
+      const move = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+      if (!state.touchArmed) {
+        // Палец поехал до порога удержания — это прокрутка, ход отменяем.
+        if (move > TOUCH_SLOP) cancelTouchPaint();
+      } else if (move > 5) {
+        // Удержание + движение — протяжка от стартовой клетки.
+        const { i, j } = press;
+        cancelTouchPaint();
+        state.dragging = true;
+        // Ошибка на первой клетке — протяжку не начинаем (БАГ-2).
+        if (applyTool(i, j, true)) { state.dragging = false; return; }
+        state.dragValue = state.grid[i][j];
+      }
+    }
     if (!state.dragging) return;
     const target = document.elementFromPoint(e.clientX, e.clientY);
     if (!target || target.dataset.r === undefined) return;
@@ -453,9 +469,66 @@ export function render() {
 /* ---- POINTER ---- */
 let rightHandled = false; // ПКМ обработана в onDown → contextmenu должен её пропустить
 
+/* ---- TOUCH: тап / удержание / свайп ----
+   Ход НЕ коммитится на pointerdown: в первые миллиметры палец может оказаться
+   прокруткой или вторым пальцем жеста. Схема:
+     свайп сразу            → нативная прокрутка (touch-action: pan-x pan-y);
+     отпустил на месте      → тап, ход активным инструментом;
+     удержал HOLD_MS        → режим рисования (вибро + рамка), движение — протяжка;
+     удержал CROSS_MS       → крестик, как прежний тач-лонгпресс (инструмент не меняем). */
+const TOUCH_SLOP = 10;  // px: сдвиг больше — палец «поехал», это прокрутка
+const HOLD_MS    = 180; // удержание до режима рисования
+const CROSS_MS   = 500; // удержание на месте до крестика
+
+let press = null; // {i, j, id, x, y, el, holdT, crossT} — палец лежит на клетке
+
+export function cancelTouchPaint() {
+  state.touchArmed = false;
+  if (!press) return;
+  clearTimeout(press.holdT); clearTimeout(press.crossT);
+  press.el.classList.remove('press-arm');
+  press = null;
+}
+
+window.addEventListener('pointerup', e => {
+  if (!press || e.pointerId !== press.id) return;
+  const { i, j } = press;
+  cancelTouchPaint();
+  // Палец отпущен, не сдвинувшись: обычный тап (быстрый или после удержания).
+  if (!state.solved && !state.gesture) applyTool(i, j, true);
+});
+window.addEventListener('pointercancel', e => {
+  // Браузер забрал жест под прокрутку/системное действие — ход не делаем.
+  if (press && e.pointerId === press.id) cancelTouchPaint();
+});
+
 export function onDown(e, i, j) {
   e.preventDefault();
   if (state.solved || state.gesture) return;
+
+  if (e.pointerType === 'touch') {
+    // Второй палец во время удержания — это жест навигации, не ход.
+    if (press) { cancelTouchPaint(); return; }
+    press = {
+      i, j, id: e.pointerId, x: e.clientX, y: e.clientY, el: state.cellEls[i][j],
+      holdT: setTimeout(() => {
+        if (!press || state.gesture) return;
+        state.touchArmed = true; // с этого момента main.js гасит прокрутку
+        press.el.classList.add('press-arm');
+        vibrate(15);
+      }, HOLD_MS),
+      crossT: setTimeout(() => {
+        if (!press || state.gesture || state.dragging) return;
+        const pi = press.i, pj = press.j;
+        cancelTouchPaint();
+        const next = state.grid[pi][pj] === 2 ? 0 : 2;
+        state.dragging = true; state.dragValue = next; // протяжка крестиков, как у ПКМ
+        commitCell(pi, pj, next);
+        vibrate(25);
+      }, CROSS_MS),
+    };
+    return;
+  }
 
   // Правая кнопка мыши — крестик с поддержкой драга; активный инструмент не меняем.
   if (e.button === 2) {

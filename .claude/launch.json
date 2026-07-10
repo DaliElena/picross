@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "picross",
-      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeExecutable": "node",
       "runtimeArgs": ["serve.js"],
       "port": 3000,
       "autoPort": true
