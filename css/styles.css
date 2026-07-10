@@ -1,5 +1,12 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Нативный зум страницы запрещён на всех элементах: браузерный пинч или
+   двойной тап (щипок мимо поля — по шапке, панели, краям) масштабировал саму
+   страницу и ломал вёрстку с координатами. pan-x pan-y = прокрутка пальцем
+   разрешена, масштабирование страницы — нет. Свой зум сетки (щипок по полю,
+   кнопки, ctrl+колесо) обрабатывается в main.js и продолжает работать. */
+* { touch-action: pan-x pan-y; }
+
 :root {
   --accent: #0064e0;
   --accent-shadow: rgba(0,100,224,0.28);
@@ -675,6 +682,22 @@ body {
 }
 @media (max-width: 599px) { #app { display: contents; } }
 
+/* ---- ЗАГЛУШКА АЛЬБОМНОЙ ОРИЕНТАЦИИ ----
+   Игра свёрстана под портрет; в альбомном режиме на телефонах вёрстка
+   ломается. Программно запретить поворот в браузере нельзя (iOS игнорирует
+   и manifest, и Screen Orientation API), поэтому альбомную закрываем
+   полноэкранной просьбой повернуть устройство. pointer: coarse отсекает
+   десктопы, max-height — планшеты. */
+#rotateOverlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 4000;
+  background: var(--bg); color: var(--text);
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; text-align: center;
+  font-size: 16px; font-weight: 600; line-height: 1.45;
+}
+#rotateOverlay svg { color: var(--muted); }
+
 /* ---- ТОСТ «ЧТО НОВОГО» ---- */
 .whatsnew-toast {
   position: fixed;
@@ -716,3 +739,7 @@ body {
   display: flex; flex-direction: column; gap: 6px;
 }
 .whatsnew-toast__list li { font-size: 13px; color: var(--text); line-height: 1.45; }
+
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
+  #rotateOverlay { display: flex; }
+}

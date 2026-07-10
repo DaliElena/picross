@@ -1868,6 +1868,27 @@ puzzleArea.addEventListener('wheel', e => {
   zoomAt(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
 }, { passive: false });
 
+/* ---- НАТИВНЫЙ ЗУМ СТРАНИЦЫ: полностью запрещён ----
+   Щипок мимо поля (шапка, нижняя панель, края) масштабировал саму страницу:
+   после этого вёрстка расползалась, а координаты кнопок и сетки переставали
+   совпадать с видимыми. maximum-scale/user-scalable в <meta viewport> iOS
+   Safari игнорирует, поэтому гасим жесты руками. Свой зум сетки (щипок по
+   полю, кнопки, ctrl+колесо) работает через обработчики выше. */
+document.addEventListener('gesturestart',  e => e.preventDefault(), { passive: false }); // iOS
+document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false }); // iOS
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+/* ---- ОРИЕНТАЦИЯ: только портрет ----
+   manifest.json задаёт portrait установленной PWA (Android). Где доступен
+   Screen Orientation API — блокируем и в браузере; там, где нельзя (iOS),
+   альбомную закрывает заглушка #rotateOverlay (CSS-медиазапрос). */
+try {
+  if (screen.orientation && screen.orientation.lock)
+    screen.orientation.lock('portrait').catch(() => {});
+} catch (e) { /* API нет или требует fullscreen — работает CSS-заглушка */ }
+
 /* ---- ЖЕСТЫ ----
    Один палец: прокрутка нативная (touch-action: pan-x pan-y у сетки), а
    рисование — тап/удержание (game.js). Пока рисование активно, touchmove
