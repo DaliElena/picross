@@ -3,6 +3,7 @@ import { openMenu, closeMenu, renderMenuPuzzles, renderHistory } from './ui.js';
 import { PUZZLES } from './puzzles.js';
 import { loadDataset } from './dataset.js';
 import { getLastPuzzle, loadSettings, saveSettings } from './storage.js';
+import { sfxAutoCross, vibrate } from './sound.js';
 
 /* ---- PUZZLE LIST UPDATE CALLBACK ---- */
 setOnPuzzleListUpdate(() => {
@@ -47,6 +48,11 @@ document.getElementById('btnHint').addEventListener('click', () => { if (!state.
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const swPreviews = document.getElementById('swPreviews');
 const swAutoCross = document.getElementById('swAutoCross');
+const swSound = document.getElementById('swSound');
+const swVibration = document.getElementById('swVibration');
+
+// Вибрация не поддерживается (iOS Safari, десктопы) — прячем строку целиком.
+if (!('vibrate' in navigator)) document.getElementById('rowVibration').style.display = 'none';
 
 function syncSettingsUI() {
   const s = loadSettings();
@@ -54,6 +60,10 @@ function syncSettingsUI() {
   swPreviews.setAttribute('aria-checked', String(s.showPreviews));
   swAutoCross.classList.toggle('on', s.autoCross);
   swAutoCross.setAttribute('aria-checked', String(s.autoCross));
+  swSound.classList.toggle('on', s.sound);
+  swSound.setAttribute('aria-checked', String(s.sound));
+  swVibration.classList.toggle('on', s.vibration);
+  swVibration.setAttribute('aria-checked', String(s.vibration));
 }
 
 document.getElementById('btnSettings').addEventListener('click', () => {
@@ -73,6 +83,18 @@ swAutoCross.addEventListener('click', () => {
   syncSettingsUI();
   // При включении посреди партии сразу закрываем уже сошедшиеся линии.
   if (on) applyAutoCrossAll();
+});
+swSound.addEventListener('click', () => {
+  const on = !loadSettings().sound;
+  saveSettings({ sound: on });
+  syncSettingsUI();
+  if (on) sfxAutoCross(); // короткая проба звука при включении
+});
+swVibration.addEventListener('click', () => {
+  const on = !loadSettings().vibration;
+  saveSettings({ vibration: on });
+  syncSettingsUI();
+  if (on) vibrate(60); // проба вибрации при включении
 });
 document.getElementById('settingsClose').addEventListener('click', () => settingsBackdrop.classList.remove('open'));
 settingsBackdrop.addEventListener('click', e => { if (e.target === settingsBackdrop) settingsBackdrop.classList.remove('open'); });

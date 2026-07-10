@@ -8,8 +8,10 @@ const SETTINGS_KEY = 'nonogram_settings_v1';
    showPreviews — показывать ли в каталоге картинку решения нерешённых
      пазлов (для решённых превью показывается всегда);
    autoCross — автоматически закрывать крестиками пустые клетки строки/
-     столбца, когда линия сошлась (стандарт жанра: Picross S и др.). */
-const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true };
+     столбца, когда линия сошлась (стандарт жанра: Picross S и др.);
+   sound — звуковые сигналы при ошибке, победе и автокрестиках;
+   vibration — вибро-отклик на те же события (где поддерживается). */
+const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true, sound: true, vibration: true };
 
 export function loadSettings() {
   try {

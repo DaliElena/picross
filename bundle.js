@@ -153,8 +153,10 @@ const SETTINGS_KEY = 'nonogram_settings_v1';
    showPreviews — показывать ли в каталоге картинку решения нерешённых
      пазлов (для решённых превью показывается всегда);
    autoCross — автоматически закрывать крестиками пустые клетки строки/
-     столбца, когда линия сошлась (стандарт жанра: Picross S и др.). */
-const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true };
+     столбца, когда линия сошлась (стандарт жанра: Picross S и др.);
+   sound — звуковые сигналы при ошибке, победе и автокрестиках;
+   vibration — вибро-отклик на те же события (где поддерживается). */
+const DEFAULT_SETTINGS = { showPreviews: true, autoCross: true, sound: true, vibration: true };
 
 function loadSettings() {
   try {
@@ -255,6 +257,78 @@ function clearProgress(id) {
 
 function getProgress(id) {
   return loadAllProgress()[id] || null;
+}
+
+// ===== sound.js =====
+
+/* Звуковые эффекты синтезируются Web Audio API — без аудиофайлов.
+   AudioContext создаётся лениво при первом звуке: браузеры разрешают
+   звук только после жеста пользователя, а все наши триггеры (ход по
+   клетке, победа) и так случаются внутри жеста. */
+let ctx = null;
+
+function audioCtx() {
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+  }
+  // После сворачивания вкладки/паузы контекст может быть приостановлен.
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+
+// Один тон: осциллятор с экспоненциальным затуханием громкости.
+function tone(ac, { freq, at = 0, dur = 0.12, type = 'sine', gain = 0.15 }) {
+  const t0 = ac.currentTime + at;
+  const osc = ac.createOscillator();
+  const g   = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(gain, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g).connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+function playTones(tones) {
+  if (!loadSettings().sound) return;
+  const ac = audioCtx();
+  if (!ac) return;
+  for (const t of tones) tone(ac, t);
+}
+
+// navigator.vibrate есть не везде (iOS Safari и десктопы — нет).
+function vibrate(pattern) {
+  if (!loadSettings().vibration) return;
+  navigator.vibrate?.(pattern);
+}
+
+/* Ошибка: короткий низкий «бзз» из двух нисходящих тонов. */
+function sfxError() {
+  playTones([
+    { freq: 220, dur: 0.12, type: 'square', gain: 0.07 },
+    { freq: 160, at: 0.10, dur: 0.14, type: 'square', gain: 0.07 },
+  ]);
+  vibrate([70, 40, 70]);
+}
+
+/* Автокрестики: тихий короткий щелчок. */
+function sfxAutoCross() {
+  playTones([{ freq: 950, dur: 0.06, type: 'triangle', gain: 0.10 }]);
+  vibrate(20);
+}
+
+/* Победа: восходящее мажорное арпеджио C5–E5–G5–C6. */
+function sfxWin() {
+  playTones([
+    { freq: 523.25, at: 0,    dur: 0.18 },
+    { freq: 659.25, at: 0.12, dur: 0.18 },
+    { freq: 783.99, at: 0.24, dur: 0.22 },
+    { freq: 1046.5, at: 0.36, dur: 0.45, gain: 0.18 },
+  ]);
+  vibrate([30, 40, 30, 40, 100]);
 }
 
 // ===== game.js =====
@@ -436,6 +510,7 @@ function commitCell(i, j, val) {
   if (val === 1 && state.SOL[i][j] === 0) {
     state.mistakes++;
     document.getElementById('mistakesVal').textContent = state.mistakes;
+    sfxError();
     flashError(i, j);
     _clearHint();
     _saveProgress(state);
@@ -486,8 +561,11 @@ function colCells(j) { return Array.from({ length: state.N }, (_, ii) => [ii, j,
 
 function autoCrossLines(i, j) {
   if (!loadSettings().autoCross) return;
-  if (rowSolved(i)) crossLineRest(rowCells(i), j, true);
-  if (colSolved(j)) crossLineRest(colCells(j), i, true);
+  let changed = false;
+  if (rowSolved(i)) changed = crossLineRest(rowCells(i), j, true) || changed;
+  if (colSolved(j)) changed = crossLineRest(colCells(j), i, true) || changed;
+  // При победном ходе щелчок не играем — сейчас прозвучит фанфара complete().
+  if (changed && !allSolved()) sfxAutoCross();
 }
 
 /* Проставить крестики во всех уже сошедшихся линиях: при включении опции
@@ -744,6 +822,7 @@ function calcStars() {
 
 function complete() {
   state.solved = true;
+  sfxWin();
   clearProgress(state.currentPuzzleId);
   const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
   const stars = calcStars();
@@ -1436,6 +1515,11 @@ document.getElementById('btnHint').addEventListener('click', () => { if (!state.
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const swPreviews = document.getElementById('swPreviews');
 const swAutoCross = document.getElementById('swAutoCross');
+const swSound = document.getElementById('swSound');
+const swVibration = document.getElementById('swVibration');
+
+// Вибрация не поддерживается (iOS Safari, десктопы) — прячем строку целиком.
+if (!('vibrate' in navigator)) document.getElementById('rowVibration').style.display = 'none';
 
 function syncSettingsUI() {
   const s = loadSettings();
@@ -1443,6 +1527,10 @@ function syncSettingsUI() {
   swPreviews.setAttribute('aria-checked', String(s.showPreviews));
   swAutoCross.classList.toggle('on', s.autoCross);
   swAutoCross.setAttribute('aria-checked', String(s.autoCross));
+  swSound.classList.toggle('on', s.sound);
+  swSound.setAttribute('aria-checked', String(s.sound));
+  swVibration.classList.toggle('on', s.vibration);
+  swVibration.setAttribute('aria-checked', String(s.vibration));
 }
 
 document.getElementById('btnSettings').addEventListener('click', () => {
@@ -1462,6 +1550,18 @@ swAutoCross.addEventListener('click', () => {
   syncSettingsUI();
   // При включении посреди партии сразу закрываем уже сошедшиеся линии.
   if (on) applyAutoCrossAll();
+});
+swSound.addEventListener('click', () => {
+  const on = !loadSettings().sound;
+  saveSettings({ sound: on });
+  syncSettingsUI();
+  if (on) sfxAutoCross(); // короткая проба звука при включении
+});
+swVibration.addEventListener('click', () => {
+  const on = !loadSettings().vibration;
+  saveSettings({ vibration: on });
+  syncSettingsUI();
+  if (on) vibrate(60); // проба вибрации при включении
 });
 document.getElementById('settingsClose').addEventListener('click', () => settingsBackdrop.classList.remove('open'));
 settingsBackdrop.addEventListener('click', e => { if (e.target === settingsBackdrop) settingsBackdrop.classList.remove('open'); });

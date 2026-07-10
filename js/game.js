@@ -1,6 +1,7 @@
 import { PUZZLES, DIFF_LABEL, DIFF_CLASS, ACCENT, LINE, SEP, TINT_HL } from './puzzles.js';
 import { saveHistoryEntry, saveBest, loadBests, saveProgress as _saveProgress, clearProgress, getProgress, loadAllProgress, saveLastPuzzle, loadSettings } from './storage.js';
 import { loadDataset } from './dataset.js';
+import { sfxError, sfxWin, sfxAutoCross } from './sound.js';
 
 /* Ширина карточки на десктопе (должна совпадать с #app в styles.css) */
 const APP_W = 460;
@@ -178,6 +179,7 @@ export function commitCell(i, j, val) {
   if (val === 1 && state.SOL[i][j] === 0) {
     state.mistakes++;
     document.getElementById('mistakesVal').textContent = state.mistakes;
+    sfxError();
     flashError(i, j);
     _clearHint();
     _saveProgress(state);
@@ -228,8 +230,11 @@ function colCells(j) { return Array.from({ length: state.N }, (_, ii) => [ii, j,
 
 function autoCrossLines(i, j) {
   if (!loadSettings().autoCross) return;
-  if (rowSolved(i)) crossLineRest(rowCells(i), j, true);
-  if (colSolved(j)) crossLineRest(colCells(j), i, true);
+  let changed = false;
+  if (rowSolved(i)) changed = crossLineRest(rowCells(i), j, true) || changed;
+  if (colSolved(j)) changed = crossLineRest(colCells(j), i, true) || changed;
+  // При победном ходе щелчок не играем — сейчас прозвучит фанфара complete().
+  if (changed && !allSolved()) sfxAutoCross();
 }
 
 /* Проставить крестики во всех уже сошедшихся линиях: при включении опции
@@ -486,6 +491,7 @@ function calcStars() {
 
 function complete() {
   state.solved = true;
+  sfxWin();
   clearProgress(state.currentPuzzleId);
   const puz = PUZZLES.find(p => p.id === state.currentPuzzleId);
   const stars = calcStars();

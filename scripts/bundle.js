@@ -10,6 +10,7 @@ const FILES = [
   'puzzles.js',
   'puzzles-dataset.js',
   'storage.js',
+  'sound.js',
   'game.js',
   'ui.js',
   'dataset.js',
