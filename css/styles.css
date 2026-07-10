@@ -214,6 +214,10 @@ body {
 }
 /* Палец удержан — режим рисования включён, движение поведёт протяжку */
 .cell.press-arm { box-shadow: inset 0 0 0 2px var(--accent); }
+/* Удержание дошло до крестика: отпускание на месте поставит ✕ */
+.cell.press-cross { box-shadow: inset 0 0 0 2px var(--muted); }
+/* Иначе svg перехватывает elementFromPoint и тач-протяжка пропускает клетки с ✕ */
+.cross-mark { pointer-events: none; }
 
 /* ---- ZOOM CONTROL (в нижней панели) ---- */
 #zoomCtl {

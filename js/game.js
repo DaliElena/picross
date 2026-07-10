@@ -431,7 +431,7 @@ export function render() {
       el.addEventListener('pointerenter', () => onEnter(i, j));
       el.addEventListener('contextmenu', e => {
         // ПКМ уже обработан в onDown (крестик + драг), тач-лонгпресс — на
-        // таймере CROSS_MS в onDown; системное меню в обоих случаях гасим.
+        // таймере CROSS_MS + pointerup; системное меню в обоих случаях гасим.
         e.preventDefault();
         rightHandled = false;
       });
@@ -475,27 +475,33 @@ let rightHandled = false; // ПКМ обработана в onDown → contextme
      свайп сразу            → нативная прокрутка (touch-action: pan-x pan-y);
      отпустил на месте      → тап, ход активным инструментом;
      удержал HOLD_MS        → режим рисования (вибро + рамка), движение — протяжка;
-     удержал CROSS_MS       → крестик, как прежний тач-лонгпресс (инструмент не меняем). */
+     удержал CROSS_MS и отпустил на месте → крестик (инструмент не меняем).
+   Протяжка после удержания — ВСЕГДА активным инструментом: раньше CROSS_MS
+   молча переключал начатое удержание на протяжку крестиков, и пауза перед
+   движением превращала линию заливки в линию крестиков (БАГ-19). Протяжка
+   крестиков — инструментом ✕ на панели или ПКМ. */
 const TOUCH_SLOP = 10;  // px: сдвиг больше — палец «поехал», это прокрутка
 const HOLD_MS    = 180; // удержание до режима рисования
-const CROSS_MS   = 500; // удержание на месте до крестика
+const CROSS_MS   = 500; // удержание на месте: отпускание поставит крестик
 
-let press = null; // {i, j, id, x, y, el, holdT, crossT} — палец лежит на клетке
+let press = null; // {i, j, id, x, y, el, holdT, crossT, crossArmed} — палец лежит на клетке
 
 export function cancelTouchPaint() {
   state.touchArmed = false;
   if (!press) return;
   clearTimeout(press.holdT); clearTimeout(press.crossT);
-  press.el.classList.remove('press-arm');
+  press.el.classList.remove('press-arm', 'press-cross');
   press = null;
 }
 
 window.addEventListener('pointerup', e => {
   if (!press || e.pointerId !== press.id) return;
-  const { i, j } = press;
+  const { i, j, crossArmed } = press;
   cancelTouchPaint();
-  // Палец отпущен, не сдвинувшись: обычный тап (быстрый или после удержания).
-  if (!state.solved && !state.gesture) applyTool(i, j, true);
+  if (state.solved || state.gesture) return;
+  // Палец отпущен, не сдвинувшись: долгое удержание — крестик, иначе обычный тап.
+  if (crossArmed) commitCell(i, j, state.grid[i][j] === 2 ? 0 : 2);
+  else applyTool(i, j, true);
 });
 window.addEventListener('pointercancel', e => {
   // Браузер забрал жест под прокрутку/системное действие — ход не делаем.
@@ -519,12 +525,11 @@ export function onDown(e, i, j) {
       }, HOLD_MS),
       crossT: setTimeout(() => {
         if (!press || state.gesture || state.dragging) return;
-        const pi = press.i, pj = press.j;
-        cancelTouchPaint();
-        const next = state.grid[pi][pj] === 2 ? 0 : 2;
-        state.dragging = true; state.dragValue = next; // протяжка крестиков, как у ПКМ
-        commitCell(pi, pj, next);
-        vibrate(25);
+        // Ход не коммитим: клетка скрыта под пальцем, молчаливое переключение
+        // на крестики уводило протяжку не тем инструментом (БАГ-19).
+        press.crossArmed = true; // отпустит, не сдвинувшись — крестик (pointerup)
+        press.el.classList.add('press-cross');
+        vibrate([15, 50, 15]);
       }, CROSS_MS),
     };
     return;
