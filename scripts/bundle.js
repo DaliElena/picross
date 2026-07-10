@@ -14,6 +14,7 @@ const FILES = [
   'game.js',
   'ui.js',
   'dataset.js',
+  'whatsnew.js',
   'main.js',
 ];
 

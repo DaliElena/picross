@@ -4,6 +4,7 @@ import { PUZZLES } from './puzzles.js';
 import { loadDataset } from './dataset.js';
 import { getLastPuzzle, loadSettings, saveSettings } from './storage.js';
 import { sfxAutoCross, vibrate, canVibrate } from './sound.js';
+import { checkWhatsNew } from './whatsnew.js';
 
 /* ---- PUZZLE LIST UPDATE CALLBACK ---- */
 setOnPuzzleListUpdate(() => {
@@ -320,3 +321,6 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
+
+/* ---- ЧТО НОВОГО ---- */
+checkWhatsNew();

@@ -674,3 +674,45 @@ body {
   }
 }
 @media (max-width: 599px) { #app { display: contents; } }
+
+/* ---- ТОСТ «ЧТО НОВОГО» ---- */
+.whatsnew-toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 32px));
+  background: var(--card-bg);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.25);
+  z-index: 100;
+  animation: whatsnew-in .3s ease both;
+}
+.whatsnew-toast--out { animation: whatsnew-out .25s ease both; }
+@keyframes whatsnew-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes whatsnew-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(16px); }
+}
+.whatsnew-toast__header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.whatsnew-toast__title {
+  font-size: 13px; font-weight: 700; letter-spacing: .5px;
+  color: var(--accent); text-transform: uppercase;
+}
+.whatsnew-toast__close {
+  background: none; border: none; color: var(--muted);
+  font-size: 16px; cursor: pointer; padding: 0 0 0 8px; line-height: 1;
+}
+.whatsnew-toast__list {
+  margin: 0; padding-left: 18px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.whatsnew-toast__list li { font-size: 13px; color: var(--text); line-height: 1.45; }
